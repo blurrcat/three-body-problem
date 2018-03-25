@@ -12,6 +12,7 @@
   "devDependencies": {
     "ace-css": "^1.1.0",
     "css-loader": "^0.28.11",
+    "elm-test": "^0.18.12",
     "elm-webpack-loader": "^4.5.0",
     "file-loader": "^1.1.11",
     "font-awesome": "^4.7.0",
