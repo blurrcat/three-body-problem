@@ -1,107 +1,108 @@
-module Universe exposing (bang, tick, getBodies, Universe, Body, body)
+module Universe
+    exposing
+        ( Msg
+        , Model
+        , init
+        , update
+        , view
+        , subscriptions
+        , getRandomUniverse
+        , togglePaused
+        )
 
-import Math.Vector2 exposing (..)
+import Html exposing (..)
+import Random
+import Svg exposing (svg, rect, circle)
+import Svg.Attributes as Svga exposing (..)
+import Math.Vector2 exposing (toTuple)
+import Universe.Physics exposing (tick, empty, getBodies, Universe, Body, G, DT)
+import Universe.Random exposing (genUniverse, BodyParams)
+import Time exposing (Time, millisecond)
 
 
-type alias Force =
-    Vec2
-
-
-type alias ConstantG =
-    Float
-
-
-type alias Body =
-    { mass : Float
-    , velocity : Vec2
-    , position : Vec2
+type alias Model =
+    { universe : Universe
+    , paused : Bool
+    , initialized : Bool
     }
 
 
-body : Float -> ( Float, Float ) -> ( Float, Float ) -> Body
-body mass velocity position =
-    Body mass (fromTuple velocity) (fromTuple position)
+type Msg
+    = Noop
+    | Tick Time
+    | TogglePaused
+    | GetRandomUniverse G DT Int BodyParams
+    | RandomUniverseArrived Universe
 
 
-type alias IndexedBody =
-    ( Int, Body )
+init : ( Model, Cmd Msg )
+init =
+    { universe = empty
+    , paused = True
+    , initialized = False
+    }
+        ! []
 
 
-getForce : ConstantG -> IndexedBody -> IndexedBody -> Maybe Force
-getForce g ( id1, b1 ) ( id2, b2 ) =
-    if id1 == id2 then
-        Nothing
+getRandomUniverse : G -> DT -> Int -> BodyParams -> Msg
+getRandomUniverse g dt n params =
+    GetRandomUniverse g dt n params
+
+
+togglePaused : Msg
+togglePaused =
+    TogglePaused
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        Noop ->
+            model ! []
+
+        GetRandomUniverse g dt n params ->
+            model ! [ Random.generate RandomUniverseArrived (genUniverse g dt n params) ]
+
+        RandomUniverseArrived universe ->
+            { model | universe = universe, initialized = True } ! []
+
+        TogglePaused ->
+            { model | paused = not model.paused } ! []
+
+        Tick _ ->
+            { model | universe = (tick model.universe) } ! []
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    if not model.paused && model.initialized then
+        Time.every (50 * millisecond) Tick
     else
-        let
-            delta =
-                sub b2.position b1.position
-
-            dist =
-                length delta
-        in
-            Just <|
-                scale (g * b1.mass * b2.mass / (dist ^ 3)) delta
+        Sub.none
 
 
-applyForce : Float -> IndexedBody -> Force -> IndexedBody
-applyForce dt ( id, body ) force =
+view : ( Int, Int ) -> Model -> List (Html msg)
+view ( width, height ) model =
     let
-        { mass, velocity, position } =
-            body
-
-        newVelocity =
-            force
-                |> scale (dt / mass)
-                |> add velocity
-
-        newPosition =
-            velocity
-                |> add newVelocity
-                |> scale (dt * 0.5)
-                |> add position
+        box =
+            [ 0, 0, width, height ]
+                |> List.map toString
+                |> String.join " "
     in
-        ( id, { body | velocity = newVelocity, position = newPosition } )
+        [ rect [ Svga.fill "black", Svga.width "100%", Svga.height "100%" ] []
+            :: (model.universe
+                    |> getBodies
+                    |> List.map viewBody
+               )
+            |> svg
+                [ viewBox box ]
+        ]
 
 
-type alias Universe =
-    { bodies : List IndexedBody
-    , constantG : Float
-    , dt : Float
-    , epoch : Int
-    }
-
-
-bang : List Body -> Float -> Float -> Universe
-bang bodies g dt =
-    { bodies = bodies |> List.indexedMap (,)
-    , constantG = g
-    , dt = dt
-    , epoch = 0
-    }
-
-
-getBodies : Universe -> List Body
-getBodies universe =
-    universe.bodies
-        |> List.map Tuple.second
-
-
-tickBody : Universe -> IndexedBody -> IndexedBody
-tickBody { bodies, constantG, dt } indexedBody =
+viewBody : Body -> Html msg
+viewBody { mass, position } =
     let
-        combinedForce =
-            bodies
-                |> List.filterMap (getForce constantG indexedBody)
-                |> List.foldl add (vec2 0 0)
+        ( x, y ) =
+            (toTuple position)
     in
-        applyForce dt indexedBody combinedForce
-
-
-tick : Universe -> Universe
-tick universe =
-    let
-        newBodies =
-            universe.bodies
-                |> List.map (tickBody universe)
-    in
-        { universe | bodies = newBodies, epoch = universe.epoch + 1 }
+        circle [ cx (toString x), cy (toString y), r (mass |> sqrt |> toString), fill "#ffffff" ] []
