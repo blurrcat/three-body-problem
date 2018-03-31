@@ -71,15 +71,17 @@ type alias Universe =
     { bodies : List IndexedBody
     , g : G
     , dt : DT
+    , n : Int
     , epoch : Int
     }
 
 
-bang : G -> DT -> List Body -> Universe
-bang g dt bodies =
+bang : Int -> G -> DT -> List Body -> Universe
+bang n g dt bodies =
     { bodies = bodies |> List.indexedMap (,)
     , g = g
     , dt = dt
+    , n = n
     , epoch = 0
     }
 
@@ -87,8 +89,9 @@ bang g dt bodies =
 empty : Universe
 empty =
     { bodies = []
-    , g = 0.1
+    , g = 0.5
     , dt = 0.1
+    , n = 400
     , epoch = 0
     }
 

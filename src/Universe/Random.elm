@@ -40,5 +40,5 @@ genBodies n params =
 genUniverse : G -> DT -> Int -> BodyParams -> R.Generator Universe
 genUniverse g dt n params =
     R.map
-        (bang g dt)
+        (bang n g dt)
         (genBodies n params)
