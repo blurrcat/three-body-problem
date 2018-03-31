@@ -1,4 +1,5 @@
 var path = require("path");
+var debug = process.env.NODE_ENV != 'PRODUCTION'
 
 module.exports = {
   entry: {
@@ -31,7 +32,7 @@ module.exports = {
         exclude: [/elm-stuff/, /node_modules/],
         loader:  'elm-webpack-loader?verbose=true&warn=true',
         options: {
-          debug: true
+          debug: debug
         }
       },
       {
