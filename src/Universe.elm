@@ -17,7 +17,8 @@ import Svg.Attributes as Svga exposing (..)
 import Math.Vector2 exposing (toTuple)
 import Universe.Physics exposing (tick, empty, getBodies, Universe, Body, G, DT)
 import Universe.Random exposing (genUniverse, BodyParams)
-import Time exposing (Time, millisecond)
+import Time exposing (Time)
+import AnimationFrame
 
 
 type alias Model =
@@ -76,7 +77,7 @@ update msg model =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     if not model.paused && model.initialized then
-        Time.every (50 * millisecond) Tick
+        AnimationFrame.times Tick
     else
         Sub.none
 

@@ -1,13 +1,11 @@
-module Main exposing (..)
+module Main exposing (main)
 
-import Random as R exposing (..)
-import Html as H exposing (..)
-import Html.Attributes as Ha exposing (..)
+import Html exposing (..)
+import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
 import Universe as U
 import Universe.Physics exposing (G, DT)
 import Universe.Random exposing (BodyParams)
-import Math.Vector2 exposing (toTuple)
 
 
 type alias Model =
@@ -25,7 +23,7 @@ type Msg
 
 main : Program Never Model Msg
 main =
-    H.program
+    Html.program
         { init = init
         , view = view
         , update = update
@@ -115,25 +113,25 @@ subscriptions model =
 
 view : Model -> Html Msg
 view model =
-    div [ Ha.class "mx-auto fit" ]
-        [ div [ Ha.class "clearfix" ]
-            [ model |> viewControls [ Ha.class "col col-3" ]
-            , div [ Ha.class "col col-9" ] (U.view ( 100, 100 ) model.universe)
+    div [ class "mx-auto fit" ]
+        [ div [ class "clearfix" ]
+            [ model |> viewControls [ class "col col-3" ]
+            , div [ class "col col-9" ] (U.view ( 100, 100 ) model.universe)
             ]
         ]
 
 
-viewControls : List (H.Attribute Msg) -> Model -> Html Msg
+viewControls : List (Attribute Msg) -> Model -> Html Msg
 viewControls attrs { universe, bodyParams } =
     let
         u =
             universe.universe
     in
         div attrs
-            [ div [ Ha.class "mx1" ]
+            [ div [ class "mx1" ]
                 [ -- Big Bang params
                   div []
-                    [ p [ class "h2" ] [ H.text "Big Bang Params" ]
+                    [ p [ class "h2" ] [ text "Big Bang Params" ]
                     ]
 
                 -- Realtime params
