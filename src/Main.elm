@@ -78,25 +78,39 @@ subscriptions model =
 
 view : Model -> Html Msg
 view model =
-    div []
-        [ viewUniverse model.universe
-        , button [ onClick TogglePause ] [ H.text ("paused: " ++ (toString model.paused)) ]
+    div [ class "mx-auto fit" ]
+        [ div [ class "clearfix" ]
+            [ model |> viewControls [ class "col col-3" ]
+            , model |> viewUniverse [ class "col col-9" ]
+            ]
         ]
 
 
-viewUniverse : Universe -> Svg Msg
-viewUniverse universe =
-    svg [ viewBox "0 0 100 100", Svga.width "600px" ]
-        (universe
-            |> getBodies
-            |> List.map viewBody
-        )
+viewControls : List (H.Attribute Msg) -> Model -> Html Msg
+viewControls attrs model =
+    div attrs
+        [ div [ class "mx1" ]
+            [ button [ onClick TogglePause ] [ H.text ("paused: " ++ (toString model.paused)) ]
+            ]
+        ]
 
 
-viewBody : Body -> Svg Msg
+viewUniverse : List (H.Attribute msg) -> Model -> Html msg
+viewUniverse attrs { universe } =
+    div attrs
+        [ rect [ Svga.fill "black", width "100%", height "100%" ] []
+            :: (universe
+                    |> getBodies
+                    |> List.map viewBody
+               )
+            |> svg [ viewBox "0 0 100 100" ]
+        ]
+
+
+viewBody : Body -> Html msg
 viewBody { mass, position } =
     let
         ( x, y ) =
             (toTuple position)
     in
-        circle [ cx (toString x), cy (toString y), r (mass |> sqrt |> toString), fill "#000000" ] []
+        circle [ cx (toString x), cy (toString y), r (mass |> sqrt |> toString), fill "#ffffff" ] []
