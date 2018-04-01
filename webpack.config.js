@@ -1,6 +1,8 @@
 var path = require("path");
+var env = process.env.NODE_ENV ? process.env.NODE_ENV : 'development'
 
 module.exports = {
+  mode: env,
   entry: {
     app: [
       './src/index.js'
@@ -31,7 +33,7 @@ module.exports = {
         exclude: [/elm-stuff/, /node_modules/],
         loader:  'elm-webpack-loader?verbose=true&warn=true',
         options: {
-          debug: true
+          debug: env == 'development'
         }
       },
       {
@@ -49,6 +51,7 @@ module.exports = {
 
   devServer: {
     inline: true,
+    compress: true,
     stats: { colors: true },
   },
 

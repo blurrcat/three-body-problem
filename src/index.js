@@ -1,7 +1,7 @@
 'use strict';
 
-require('ace-css/css/ace.css');
-require('font-awesome/css/font-awesome.css');
+require('./base.css')
+require('colors.css/css/colors.css')
 
 // Require index.html so it gets copied to dist
 require('./index.html');

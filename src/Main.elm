@@ -1,29 +1,36 @@
-module Main exposing (..)
+module Main exposing (main)
 
-import Html as H exposing (..)
-import Html.Events exposing (onClick)
-import Universe exposing (..)
-import Svg exposing (..)
-import Svg.Attributes as Svga exposing (..)
-import Math.Vector2 exposing (toTuple)
-import Time exposing (Time, millisecond)
+import Html exposing (..)
+import Html.Attributes exposing (..)
+import Html.Events exposing (onClick, onInput)
+import Universe as U
+import Universe.Physics exposing (G, DT)
+import Universe.Random exposing (BodyParams)
 
 
 type alias Model =
-    { universe : Universe
-    , paused : Bool
+    { universe : U.Model
+    , bodyParams : BodyParams
+    , fieldN : String
+    , errorN : String
+    , fieldG : String
+    , errorG : String
+    , fieldDT : String
+    , errorDT : String
     }
 
 
 type Msg
     = Noop
-    | Tick Time
-    | TogglePause
+    | Universe U.Msg
+    | ChangeG String
+    | ChangeDt String
+    | ChangeN String
 
 
 main : Program Never Model Msg
 main =
-    H.program
+    Html.program
         { init = init
         , view = view
         , update = update
@@ -31,72 +38,196 @@ main =
         }
 
 
+wrapUniverseMsg : U.Msg -> Msg
+wrapUniverseMsg msg =
+    Universe msg
+
+
+wrapUniverseSubscriptions : Sub U.Msg -> Sub Msg
+wrapUniverseSubscriptions sub =
+    sub |> Sub.map wrapUniverseMsg
+
+
+wrapUniverseState : ( U.Model, Cmd U.Msg ) -> ( U.Model, Cmd Msg )
+wrapUniverseState ( universe, cmd ) =
+    ( universe, cmd |> Cmd.map wrapUniverseMsg )
+
+
 init : ( Model, Cmd Msg )
 init =
     let
-        bodies =
-            [ Universe.body
-                1.0
-                ( 0.1, 5.01 )
-                ( 21.0, 1.0 )
-            , Universe.body
-                1.0
-                ( 5.1, 0.01 )
-                ( 10.0, 15.0 )
-            , Universe.body
-                10.0
-                ( -0.01, 0.1 )
-                ( 50.0, 50.0 )
-            ]
+        ( universe, cmd ) =
+            U.init |> wrapUniverseState
     in
-        { universe = bang bodies 100 0.1
-        , paused = True
+        { universe = universe
+        , bodyParams =
+            { massRange = ( 0.1, 0.5 )
+            , velocityRange = ( -0.5, 0.5 )
+            , positionRange = ( 0.0, 99.0 )
+            }
+        , fieldN = toString universe.universe.n
+        , errorN = ""
+        , fieldG = toString universe.universe.g
+        , errorG = ""
+        , fieldDT = toString universe.universe.dt
+        , errorDT = ""
         }
-            ! []
+            ! [ cmd ]
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
+update msg ({ universe } as model) =
     case msg of
         Noop ->
             model ! []
 
-        Tick _ ->
-            { model | universe = (tick model.universe) } ! []
+        Universe uMsg ->
+            let
+                ( newUniverse, cmds ) =
+                    (U.update uMsg model.universe) |> wrapUniverseState
+            in
+                { model | universe = newUniverse } ! [ cmds ]
 
-        TogglePause ->
-            { model | paused = (not model.paused) } ! []
+        ChangeG raw ->
+            case String.toFloat raw of
+                Ok g ->
+                    update
+                        (wrapUniverseMsg (U.SetG g))
+                        { model | fieldG = raw, errorG = "" }
+
+                Err error ->
+                    { model | fieldG = raw, errorG = error } ! []
+
+        ChangeDt raw ->
+            case String.toFloat raw of
+                Ok dt ->
+                    update
+                        (wrapUniverseMsg (U.SetDT dt))
+                        { model | fieldDT = raw, errorDT = "" }
+
+                Err error ->
+                    { model | fieldDT = raw, errorDT = error } ! []
+
+        ChangeN raw ->
+            case String.toInt raw of
+                Ok n ->
+                    update
+                        (wrapUniverseMsg (U.SetN n))
+                        { model | fieldN = raw, errorN = "" }
+
+                Err error ->
+                    { model | fieldN = raw, errorN = error } ! []
 
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    if not model.paused then
-        Time.every (50 * millisecond) Tick
-    else
-        Sub.none
+    U.subscriptions (model.universe) |> wrapUniverseSubscriptions
 
 
 view : Model -> Html Msg
 view model =
-    div []
-        [ viewUniverse model.universe
-        , button [ onClick TogglePause ] [ H.text ("paused: " ++ (toString model.paused)) ]
+    div [ class "pure-g" ]
+        [ model |> viewControls [ class "pure-u-1-4" ]
+        , div [ class "pure-u-3-4" ] (U.view ( 100, 100 ) model.universe)
         ]
 
 
-viewUniverse : Universe -> Svg Msg
-viewUniverse universe =
-    svg [ viewBox "0 0 100 100", Svga.width "600px" ]
-        (universe
-            |> getBodies
-            |> List.map viewBody
-        )
-
-
-viewBody : Body -> Svg Msg
-viewBody { mass, position } =
+viewControls : List (Attribute Msg) -> Model -> Html Msg
+viewControls attrs ({ universe, bodyParams } as model) =
     let
-        ( x, y ) =
-            (toTuple position)
+        u =
+            universe.universe
+
+        playBtnIcon =
+            (if universe.paused then
+                "play"
+             else
+                "pause"
+            )
     in
-        circle [ cx (toString x), cy (toString y), r (mass |> sqrt |> toString), fill "#000000" ] []
+        div attrs
+            [ div [ style [ ( "padding", "0.5em" ) ] ]
+                [ Html.form
+                    [ class "pure-form pure-form-stacked"
+                    ]
+                    [ fieldset []
+                        [ legend []
+                            [ text "Big Bang Params" ]
+                        , (viewNumberInput "N" "# of bodies" model.fieldN model.errorN ChangeN)
+                        ]
+                    ]
+                , div []
+                    [ div [ class "pure-u-1-2" ]
+                        [ button
+                            [ class "pure-button"
+                            , onClick
+                                ((U.getRandomUniverse
+                                    u.g
+                                    u.dt
+                                    u.n
+                                    bodyParams
+                                 )
+                                    |> wrapUniverseMsg
+                                )
+                            ]
+                            [ text "Bang!" ]
+                        ]
+                    ]
+                , Html.form
+                    [ class "pure-form pure-form-stacked"
+                    , style [ ( "margin-top", "0.5em" ) ]
+                    ]
+                    [ fieldset []
+                        [ legend []
+                            [ text "Realtime Params" ]
+                        , (viewNumberInput
+                            "G"
+                            "gravitational constant"
+                            model.fieldG
+                            model.errorG
+                            ChangeG
+                          )
+                        , (viewNumberInput
+                            "DT"
+                            "speed of time"
+                            model.fieldDT
+                            model.errorDT
+                            ChangeDt
+                          )
+                        ]
+                    ]
+
+                -- controls
+                , div
+                    [ class "pure-g" ]
+                    [ div [ class "pure-u-1-2" ]
+                        [ button
+                            [ class "pure-button"
+                            , onClick (U.togglePaused |> wrapUniverseMsg)
+                            , disabled (not universe.initialized)
+                            ]
+                            [ i [ class ("fa fa-lg fa-" ++ playBtnIcon) ] [] ]
+                        ]
+                    ]
+                ]
+            ]
+
+
+viewNumberInput : String -> String -> String -> String -> (String -> Msg) -> Html Msg
+viewNumberInput name desc val error msg =
+    div [ class "pure-control-group" ]
+        [ label [ for name ]
+            [ b [] [ text name ]
+            , span
+                [ style [ ( "margin-left", "0.5em" ), ( "font-size", "90%" ) ]
+                ]
+                [ text desc ]
+            ]
+        , input
+            [ id name
+            , value val
+            , onInput msg
+            ]
+            []
+        , span [ class "red" ] [ text error ]
+        ]
