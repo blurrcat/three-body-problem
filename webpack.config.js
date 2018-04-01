@@ -51,6 +51,7 @@ module.exports = {
 
   devServer: {
     inline: true,
+    compress: true,
     stats: { colors: true },
   },
 

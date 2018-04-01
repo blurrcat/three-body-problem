@@ -1,6 +1,6 @@
 module Universe
     exposing
-        ( Msg
+        ( Msg(..)
         , Model
         , init
         , update
@@ -15,7 +15,7 @@ import Random
 import Svg exposing (svg, rect, circle)
 import Svg.Attributes as Svga exposing (..)
 import Math.Vector2 exposing (toTuple)
-import Universe.Physics exposing (tick, empty, getBodies, Universe, Body, G, DT)
+import Universe.Physics exposing (..)
 import Universe.Random exposing (genUniverse, BodyParams)
 import Time exposing (Time)
 import AnimationFrame
@@ -31,6 +31,9 @@ type alias Model =
 type Msg
     = Noop
     | Tick Time
+    | SetG Float
+    | SetDT Float
+    | SetN Int
     | TogglePaused
     | GetRandomUniverse G DT Int BodyParams
     | RandomUniverseArrived Universe
@@ -56,7 +59,7 @@ togglePaused =
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
+update msg ({ universe } as model) =
     case msg of
         Noop ->
             model ! []
@@ -69,6 +72,15 @@ update msg model =
 
         TogglePaused ->
             { model | paused = not model.paused } ! []
+
+        SetG g ->
+            { model | universe = (setG g universe) } ! []
+
+        SetDT dt ->
+            { model | universe = (setDT dt universe) } ! []
+
+        SetN n ->
+            { model | universe = (setN n universe) } ! []
 
         Tick _ ->
             { model | universe = (tick model.universe) } ! []

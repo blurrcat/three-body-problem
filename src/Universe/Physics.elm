@@ -1,4 +1,18 @@
-module Universe.Physics exposing (bang, tick, getBodies, Universe, Body, body, empty, G, DT)
+module Universe.Physics
+    exposing
+        ( bang
+        , tick
+        , setG
+        , setDT
+        , setN
+        , getBodies
+        , Universe
+        , Body
+        , body
+        , empty
+        , G
+        , DT
+        )
 
 import Math.Vector2 exposing (..)
 
@@ -27,6 +41,11 @@ body mass velocity position =
     Body mass (fromTuple velocity) (fromTuple position)
 
 
+getR : Body -> Float
+getR body =
+    sqrt body.mass
+
+
 type alias IndexedBody =
     ( Int, Body )
 
@@ -43,8 +62,12 @@ getForce g ( id1, b1 ) ( id2, b2 ) =
             dist =
                 length delta
         in
-            Just <|
-                scale (g * b1.mass * b2.mass / (dist ^ 3)) delta
+            if dist < ([ b1, b2 ] |> List.map getR |> List.sum) then
+                -- do collision
+                Nothing
+            else
+                Just <|
+                    scale (g * b1.mass * b2.mass / (dist ^ 3)) delta
 
 
 applyForce : DT -> IndexedBody -> Force -> IndexedBody
@@ -76,6 +99,21 @@ type alias Universe =
     }
 
 
+setG : G -> Universe -> Universe
+setG g universe =
+    { universe | g = g }
+
+
+setDT : DT -> Universe -> Universe
+setDT dt universe =
+    { universe | dt = dt }
+
+
+setN : Int -> Universe -> Universe
+setN n universe =
+    { universe | n = n }
+
+
 bang : Int -> G -> DT -> List Body -> Universe
 bang n g dt bodies =
     { bodies = bodies |> List.indexedMap (,)
@@ -89,9 +127,9 @@ bang n g dt bodies =
 empty : Universe
 empty =
     { bodies = []
-    , g = 0.5
+    , g = 5
     , dt = 0.1
-    , n = 200
+    , n = 20
     , epoch = 0
     }
 
