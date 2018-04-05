@@ -118,4 +118,11 @@ viewBody { mass, position } =
         ( x, y ) =
             (toTuple position)
     in
-        circle [ cx (toString x), cy (toString y), r (mass |> sqrt |> toString), fill "#ffffff" ] []
+        circle
+            [ cx (toString x)
+            , cy (toString y)
+            , r (mass |> sqrt |> toString)
+            , fill "#ffffff"
+            , fillOpacity "0.8"
+            ]
+            []

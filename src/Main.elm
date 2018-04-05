@@ -61,8 +61,8 @@ init =
     in
         { universe = universe
         , bodyParams =
-            { massRange = ( 0.1, 0.5 )
-            , velocityRange = ( -0.5, 0.5 )
+            { massRange = ( 0.01, 0.5 )
+            , velocityRange = ( -1.8, 1.8 )
             , positionRange = ( 0.0, 99.0 )
             }
         , fieldN = toString universe.universe.n
@@ -138,9 +138,9 @@ viewControls attrs ({ universe, bodyParams } as model) =
         u =
             universe.universe
 
-        playBtnIcon =
+        playBtnText =
             (if universe.paused then
-                "play"
+                "Go!"
              else
                 "pause"
             )
@@ -206,7 +206,7 @@ viewControls attrs ({ universe, bodyParams } as model) =
                             , onClick (U.togglePaused |> wrapUniverseMsg)
                             , disabled (not universe.initialized)
                             ]
-                            [ i [ class ("fa fa-lg fa-" ++ playBtnIcon) ] [] ]
+                            [ text playBtnText ]
                         ]
                     ]
                 ]

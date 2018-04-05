@@ -1,7 +1,7 @@
 'use strict';
 
 require('./base.css')
-require('colors.css/css/colors.css')
+require('purecss/build/pure.css')
 
 // Require index.html so it gets copied to dist
 require('./index.html');

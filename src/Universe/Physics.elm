@@ -30,7 +30,9 @@ type alias DT =
 
 
 type alias Body =
-    { mass : Float
+    { id : Int
+    , mass : Float
+    , radious : Float
     , velocity : Vec2
     , position : Vec2
     }
@@ -38,7 +40,7 @@ type alias Body =
 
 body : Float -> ( Float, Float ) -> ( Float, Float ) -> Body
 body mass velocity position =
-    Body mass (fromTuple velocity) (fromTuple position)
+    Body 0 mass (sqrt mass) (fromTuple velocity) (fromTuple position)
 
 
 getR : Body -> Float
@@ -46,32 +48,70 @@ getR body =
     sqrt body.mass
 
 
-type alias IndexedBody =
-    ( Int, Body )
+getMomentum : Body -> Vec2
+getMomentum body =
+    scale body.mass body.velocity
 
 
-getForce : G -> IndexedBody -> IndexedBody -> Maybe Force
-getForce g ( id1, b1 ) ( id2, b2 ) =
-    if id1 == id2 then
-        Nothing
-    else
-        let
-            delta =
-                sub b2.position b1.position
+collide : DT -> Body -> Body -> Force
+collide dt b1 b2 =
+    let
+        totalMass =
+            b1.mass + b2.mass
 
-            dist =
-                length delta
-        in
-            if dist < ([ b1, b2 ] |> List.map getR |> List.sum) then
-                -- do collision
-                Nothing
-            else
-                Just <|
-                    scale (g * b1.mass * b2.mass / (dist ^ 3)) delta
+        newVelocity =
+            scale (b1.mass / totalMass) b1.velocity
+                |> add (scale (b2.mass / totalMass) b2.velocity)
+    in
+        b1.velocity
+            |> sub newVelocity
+            |> scale (b1.mass / dt)
 
 
-applyForce : DT -> IndexedBody -> Force -> IndexedBody
-applyForce dt ( id, body ) force =
+sumVec : List Vec2 -> Vec2
+sumVec vecs =
+    vecs
+        |> List.foldl add (vec2 0 0)
+
+
+getForceNotCollided : G -> Body -> BodyDist -> Force
+getForceNotCollided g me { body, dist } =
+    let
+        delta =
+            sub body.position me.position
+    in
+        if dist == 0 then
+            vec2 0 0
+        else
+            scale (g * me.mass * body.mass / (dist ^ 3)) delta
+
+
+getForceCollided : DT -> G -> Body -> List BodyDist -> Force
+getForceCollided dt g me bodyDists =
+    let
+        bodies =
+            bodyDists
+                |> List.map .body
+                |> (::) me
+
+        totalMass =
+            bodies
+                |> List.map .mass
+                |> List.sum
+
+        newVelocity =
+            bodies
+                |> List.map getMomentum
+                |> sumVec
+                |> scale (1 / totalMass)
+    in
+        me.velocity
+            |> sub newVelocity
+            |> scale (me.mass / dt)
+
+
+applyForce : DT -> Body -> Force -> Body
+applyForce dt body force =
     let
         { mass, velocity, position } =
             body
@@ -87,11 +127,27 @@ applyForce dt ( id, body ) force =
                 |> scale (dt * 0.5)
                 |> add position
     in
-        ( id, { body | velocity = newVelocity, position = newPosition } )
+        { body | velocity = newVelocity, position = newPosition }
+
+
+type alias BodyDist =
+    { body : Body
+    , dist : Float
+    }
+
+
+getDist : Body -> Body -> BodyDist
+getDist b1 b2 =
+    { body = b2, dist = (distance b1.position b2.position) }
+
+
+shouldCollide : Body -> BodyDist -> Bool
+shouldCollide me bodyDist =
+    bodyDist.dist < (me.radious + bodyDist.body.radious)
 
 
 type alias Universe =
-    { bodies : List IndexedBody
+    { bodies : List Body
     , g : G
     , dt : DT
     , n : Int
@@ -116,20 +172,25 @@ setN n universe =
 
 bang : Int -> G -> DT -> List Body -> Universe
 bang n g dt bodies =
-    { bodies = bodies |> List.indexedMap (,)
-    , g = g
-    , dt = dt
-    , n = n
-    , epoch = 0
-    }
+    let
+        bodiesWithId =
+            bodies
+                |> List.indexedMap (\id body -> { body | id = id })
+    in
+        { bodies = bodiesWithId
+        , g = g
+        , dt = dt
+        , n = n
+        , epoch = 0
+        }
 
 
 empty : Universe
 empty =
     { bodies = []
-    , g = 5
-    , dt = 0.1
-    , n = 20
+    , g = 50
+    , dt = 0.04
+    , n = 150
     , epoch = 0
     }
 
@@ -137,18 +198,25 @@ empty =
 getBodies : Universe -> List Body
 getBodies universe =
     universe.bodies
-        |> List.map Tuple.second
 
 
-tickBody : Universe -> IndexedBody -> IndexedBody
-tickBody { bodies, g, dt } indexedBody =
+tickBody : Universe -> Body -> Body
+tickBody { bodies, g, dt } me =
     let
-        combinedForce =
+        ( bodiesCollided, bodiesNotCollided ) =
             bodies
-                |> List.filterMap (getForce g indexedBody)
-                |> List.foldl add (vec2 0 0)
+                |> List.map (getDist me)
+                |> List.partition (shouldCollide me)
+
+        forceNotCollided =
+            bodiesNotCollided
+                |> List.map (getForceNotCollided g me)
+                |> sumVec
+
+        forceCollided =
+            getForceCollided dt g me bodiesCollided
     in
-        applyForce dt indexedBody combinedForce
+        applyForce dt me (add forceNotCollided forceCollided)
 
 
 tick : Universe -> Universe

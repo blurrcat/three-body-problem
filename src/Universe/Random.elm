@@ -1,6 +1,7 @@
 module Universe.Random exposing (genBody, genUniverse, FloatPair, BodyParams)
 
 import Random as R
+import Random.Float as RF
 import Universe.Physics exposing (..)
 
 
@@ -25,9 +26,15 @@ genBody { massRange, velocityRange, positionRange } =
     let
         ( minMass, maxMass ) =
             massRange
+
+        stdMass =
+            maxMass - minMass
+
+        randMass =
+            R.map abs (RF.normal 0 stdMass)
     in
         R.map3 body
-            (R.float minMass maxMass)
+            (R.map (\m -> m + minMass) randMass)
             (randomPairFloat velocityRange)
             (randomPairFloat positionRange)
 
