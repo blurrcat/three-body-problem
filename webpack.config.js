@@ -1,5 +1,7 @@
-var path = require("path");
-var env = process.env.NODE_ENV ? process.env.NODE_ENV : 'development'
+const path = require("path");
+const env = process.env.NODE_ENV ? process.env.NODE_ENV : 'development';
+const HtmlWebpackPlugin = require('html-webpack-plugin');
+
 
 module.exports = {
   mode: env,
@@ -9,9 +11,19 @@ module.exports = {
     ]
   },
 
+  plugins: [
+    new HtmlWebpackPlugin({
+      title: "Three Body",
+      meta: {
+        viewport: 'width=device-width, initial-scale=1'
+      },
+      hash: true
+    })
+  ],
+
   output: {
     path: path.resolve(__dirname + '/dist'),
-    filename: '[name].js',
+    filename: '[name].[chunkhash].js',
   },
 
   module: {
