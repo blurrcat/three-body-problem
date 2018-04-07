@@ -4,7 +4,7 @@ module Universe.Model.Body
         , G
         , DT
         , Force
-        , tickBody
+        , update
         , body
         )
 
@@ -47,13 +47,8 @@ setId id body =
     { body | id = id }
 
 
-shouldCollide : Body -> BodyDist -> Bool
-shouldCollide me bodyDist =
-    bodyDist.dist < (me.radious + bodyDist.body.radious)
-
-
-tickBody : List Body -> G -> DT -> Body -> Body
-tickBody bodies g dt me =
+update : List Body -> G -> DT -> Body -> Body
+update bodies g dt me =
     let
         ( bodiesCollided, bodiesNotCollided ) =
             bodies
@@ -71,24 +66,18 @@ tickBody bodies g dt me =
         applyForce dt me (add forceNotCollided forceCollided)
 
 
+
+-- INTERNAL
+
+
+shouldCollide : Body -> BodyDist -> Bool
+shouldCollide me bodyDist =
+    bodyDist.dist < (me.radious + bodyDist.body.radious)
+
+
 getMomentum : Body -> Vec2
 getMomentum body =
     scale body.mass body.velocity
-
-
-collide : DT -> Body -> Body -> Force
-collide dt b1 b2 =
-    let
-        totalMass =
-            b1.mass + b2.mass
-
-        newVelocity =
-            scale (b1.mass / totalMass) b1.velocity
-                |> add (scale (b2.mass / totalMass) b2.velocity)
-    in
-        b1.velocity
-            |> sub newVelocity
-            |> scale (b1.mass / dt)
 
 
 sumVec : List Vec2 -> Vec2

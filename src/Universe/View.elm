@@ -15,13 +15,12 @@ import Svg exposing (svg, rect, circle)
 import Svg.Attributes as Svga exposing (..)
 import Math.Vector2 exposing (toTuple)
 import Universe.Random exposing (genUniverse, BodyParams)
-import Universe.Model.Universe
+import Universe.Model.Universe as Universe
     exposing
         ( Universe
         , setG
         , setDT
         , setN
-        , tick
         , getBodies
         , empty
         )
@@ -87,7 +86,7 @@ update msg ({ universe } as model) =
             { model | universe = (setN n universe) } ! []
 
         Tick _ ->
-            { model | universe = (tick model.universe) } ! []
+            { model | universe = (Universe.update universe) } ! []
 
 
 subscriptions : Model -> Sub Msg

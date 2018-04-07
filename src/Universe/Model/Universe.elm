@@ -7,10 +7,10 @@ module Universe.Model.Universe
         , setDT
         , setN
         , getBodies
-        , tick
+        , update
         )
 
-import Universe.Model.Body exposing (Body, G, DT, Force, tickBody)
+import Universe.Model.Body as Body exposing (Body, G, DT, Force)
 
 
 type alias Universe =
@@ -67,11 +67,11 @@ empty =
     }
 
 
-tick : Universe -> Universe
-tick ({ bodies, g, dt, epoch } as universe) =
+update : Universe -> Universe
+update ({ bodies, g, dt, epoch } as universe) =
     let
         newBodies =
             universe.bodies
-                |> List.map (tickBody bodies g dt)
+                |> List.map (Body.update bodies g dt)
     in
         { universe | bodies = newBodies, epoch = epoch + 1 }
