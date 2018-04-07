@@ -2,7 +2,8 @@ module Universe.Random exposing (genBody, genUniverse, FloatPair, BodyParams)
 
 import Random as R
 import Random.Float as RF
-import Universe.Physics exposing (..)
+import Universe.Model.Body exposing (G, DT, Body, body)
+import Universe.Model.Universe exposing (Universe, bang)
 
 
 type alias FloatPair =

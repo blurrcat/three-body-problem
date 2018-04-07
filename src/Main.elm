@@ -3,8 +3,7 @@ module Main exposing (main)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
-import Universe as U
-import Universe.Physics exposing (G, DT)
+import Universe.View as U
 import Universe.Random exposing (BodyParams)
 
 
@@ -203,7 +202,7 @@ viewControls attrs ({ universe, bodyParams } as model) =
                     [ div [ class "pure-u-1-2" ]
                         [ button
                             [ class "pure-button"
-                            , onClick (U.togglePaused |> wrapUniverseMsg)
+                            , onClick (U.TogglePaused |> wrapUniverseMsg)
                             , disabled (not universe.initialized)
                             ]
                             [ text playBtnText ]

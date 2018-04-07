@@ -1,4 +1,4 @@
-module Universe
+module Universe.View
     exposing
         ( Msg(..)
         , Model
@@ -7,7 +7,6 @@ module Universe
         , view
         , subscriptions
         , getRandomUniverse
-        , togglePaused
         )
 
 import Html exposing (..)
@@ -15,8 +14,18 @@ import Random
 import Svg exposing (svg, rect, circle)
 import Svg.Attributes as Svga exposing (..)
 import Math.Vector2 exposing (toTuple)
-import Universe.Physics exposing (..)
 import Universe.Random exposing (genUniverse, BodyParams)
+import Universe.Model.Universe
+    exposing
+        ( Universe
+        , setG
+        , setDT
+        , setN
+        , tick
+        , getBodies
+        , empty
+        )
+import Universe.Model.Body exposing (Body, G, DT)
 import Time exposing (Time)
 import AnimationFrame
 
@@ -51,11 +60,6 @@ init =
 getRandomUniverse : G -> DT -> Int -> BodyParams -> Msg
 getRandomUniverse g dt n params =
     GetRandomUniverse g dt n params
-
-
-togglePaused : Msg
-togglePaused =
-    TogglePaused
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )

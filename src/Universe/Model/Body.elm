@@ -1,17 +1,11 @@
-module Universe.Physics
+module Universe.Model.Body
     exposing
-        ( bang
-        , tick
-        , setG
-        , setDT
-        , setN
-        , getBodies
-        , Universe
-        , Body
-        , body
-        , empty
+        ( Body
         , G
         , DT
+        , Force
+        , tickBody
+        , body
         )
 
 import Math.Vector2 exposing (..)
@@ -46,6 +40,35 @@ body mass velocity position =
 getR : Body -> Float
 getR body =
     sqrt body.mass
+
+
+setId : Int -> Body -> Body
+setId id body =
+    { body | id = id }
+
+
+shouldCollide : Body -> BodyDist -> Bool
+shouldCollide me bodyDist =
+    bodyDist.dist < (me.radious + bodyDist.body.radious)
+
+
+tickBody : List Body -> G -> DT -> Body -> Body
+tickBody bodies g dt me =
+    let
+        ( bodiesCollided, bodiesNotCollided ) =
+            bodies
+                |> List.map (getDist me)
+                |> List.partition (shouldCollide me)
+
+        forceNotCollided =
+            bodiesNotCollided
+                |> List.map (getForceNotCollided g me)
+                |> sumVec
+
+        forceCollided =
+            getForceCollided dt g me bodiesCollided
+    in
+        applyForce dt me (add forceNotCollided forceCollided)
 
 
 getMomentum : Body -> Vec2
@@ -139,91 +162,3 @@ type alias BodyDist =
 getDist : Body -> Body -> BodyDist
 getDist b1 b2 =
     { body = b2, dist = (distance b1.position b2.position) }
-
-
-shouldCollide : Body -> BodyDist -> Bool
-shouldCollide me bodyDist =
-    bodyDist.dist < (me.radious + bodyDist.body.radious)
-
-
-type alias Universe =
-    { bodies : List Body
-    , g : G
-    , dt : DT
-    , n : Int
-    , epoch : Int
-    }
-
-
-setG : G -> Universe -> Universe
-setG g universe =
-    { universe | g = g }
-
-
-setDT : DT -> Universe -> Universe
-setDT dt universe =
-    { universe | dt = dt }
-
-
-setN : Int -> Universe -> Universe
-setN n universe =
-    { universe | n = n }
-
-
-bang : Int -> G -> DT -> List Body -> Universe
-bang n g dt bodies =
-    let
-        bodiesWithId =
-            bodies
-                |> List.indexedMap (\id body -> { body | id = id })
-    in
-        { bodies = bodiesWithId
-        , g = g
-        , dt = dt
-        , n = n
-        , epoch = 0
-        }
-
-
-empty : Universe
-empty =
-    { bodies = []
-    , g = 50
-    , dt = 0.04
-    , n = 150
-    , epoch = 0
-    }
-
-
-getBodies : Universe -> List Body
-getBodies universe =
-    universe.bodies
-
-
-tickBody : Universe -> Body -> Body
-tickBody { bodies, g, dt } me =
-    let
-        ( bodiesCollided, bodiesNotCollided ) =
-            bodies
-                |> List.map (getDist me)
-                |> List.partition (shouldCollide me)
-
-        forceNotCollided =
-            bodiesNotCollided
-                |> List.map (getForceNotCollided g me)
-                |> sumVec
-
-        forceCollided =
-            getForceCollided dt g me bodiesCollided
-    in
-        applyForce dt me (add forceNotCollided forceCollided)
-
-
-tick : Universe -> Universe
-tick universe =
-    let
-        newBodies =
-            universe.bodies
-                |> List.map (tickBody universe)
-    in
-        { universe | bodies = newBodies, epoch = universe.epoch + 1 }
