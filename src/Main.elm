@@ -121,15 +121,22 @@ update msg ({ universe } as model) =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    U.subscriptions (model.universe) |> wrapUniverseSubscriptions
+    U.subscriptions model.universe
+        |> wrapUniverseSubscriptions
 
 
 view : Model -> Html Msg
 view model =
-    div [ class "pure-g" ]
-        [ model |> viewControls [ class "pure-u-1-4" ]
-        , div [ class "pure-u-3-4" ] (U.view ( 100, 100 ) model.universe)
-        ]
+    let
+        universeView =
+            model.universe
+                |> U.view ( 100, 100 )
+                |> List.map (Html.map wrapUniverseMsg)
+    in
+        div [ class "pure-g" ]
+            [ model |> viewControls [ class "pure-u-1-4" ]
+            , div [ class "pure-u-3-4" ] universeView
+            ]
 
 
 viewControls : List (Attribute Msg) -> Model -> Html Msg
