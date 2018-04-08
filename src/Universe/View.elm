@@ -116,7 +116,7 @@ view ( width, height ) model =
 
 
 viewBody : Body -> Html msg
-viewBody { mass, position } =
+viewBody { radious, mass, position } =
     let
         ( x, y ) =
             (toTuple position)
@@ -124,7 +124,7 @@ viewBody { mass, position } =
         circle
             [ cx (toString x)
             , cy (toString y)
-            , r (mass |> sqrt |> toString)
+            , r (radious |> toString)
             , fill "#ffffff"
             , fillOpacity "0.8"
             ]
