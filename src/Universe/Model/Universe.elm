@@ -1,16 +1,16 @@
 module Universe.Model.Universe
     exposing
         ( Universe
-        , empty
         , bang
-        , setG
-        , setDT
-        , setN
+        , empty
         , getBodies
+        , setDT
+        , setG
+        , setN
         , update
         )
 
-import Universe.Model.Body as Body exposing (Body, G, DT, Force)
+import Universe.Model.Body as Body exposing (Body, DT, Force, G)
 
 
 type alias Universe =

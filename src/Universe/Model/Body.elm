@@ -1,11 +1,11 @@
 module Universe.Model.Body
     exposing
         ( Body
-        , G
         , DT
         , Force
-        , update
+        , G
         , body
+        , update
         )
 
 import Math.Vector2 exposing (..)
@@ -32,19 +32,24 @@ type alias Body =
     }
 
 
+fromTuple : ( Float, Float ) -> Vec2
+fromTuple ( x, y ) =
+    fromRecord { x = x, y = y }
+
+
 body : Float -> ( Float, Float ) -> ( Float, Float ) -> Body
 body mass velocity position =
     Body 0 mass (sqrt mass) (fromTuple velocity) (fromTuple position)
 
 
 getR : Body -> Float
-getR body =
-    sqrt body.mass
+getR b =
+    sqrt b.mass
 
 
 setId : Int -> Body -> Body
-setId id body =
-    { body | id = id }
+setId id b =
+    { b | id = id }
 
 
 update : List Body -> G -> DT -> Body -> Body
@@ -76,8 +81,8 @@ shouldCollide me bodyDist =
 
 
 getMomentum : Body -> Vec2
-getMomentum body =
-    scale body.mass body.velocity
+getMomentum b =
+    scale b.mass b.velocity
 
 
 sumVec : List Vec2 -> Vec2
@@ -87,15 +92,21 @@ sumVec vecs =
 
 
 getForceNotCollided : G -> Body -> BodyDist -> Force
-getForceNotCollided g me { body, dist } =
+getForceNotCollided g me bodyDist =
     let
+        b =
+            bodyDist.body
+
+        dist =
+            bodyDist.dist
+
         delta =
-            sub body.position me.position
+            sub b.position me.position
     in
         if dist == 0 then
             vec2 0 0
         else
-            scale (g * me.mass * body.mass / (dist ^ 3)) delta
+            scale (g * me.mass * b.mass / (dist ^ 3)) delta
 
 
 getForceCollided : DT -> G -> Body -> List BodyDist -> Force
@@ -123,10 +134,10 @@ getForceCollided dt g me bodyDists =
 
 
 applyForce : DT -> Body -> Force -> Body
-applyForce dt body force =
+applyForce dt b force =
     let
         { mass, velocity, position } =
-            body
+            b
 
         newVelocity =
             force
@@ -139,7 +150,7 @@ applyForce dt body force =
                 |> scale (dt * 0.5)
                 |> add position
     in
-        { body | velocity = newVelocity, position = newPosition }
+        { b | velocity = newVelocity, position = newPosition }
 
 
 type alias BodyDist =
@@ -150,4 +161,4 @@ type alias BodyDist =
 
 getDist : Body -> Body -> BodyDist
 getDist b1 b2 =
-    { body = b2, dist = (distance b1.position b2.position) }
+    { body = b2, dist = distance b1.position b2.position }

@@ -1,8 +1,8 @@
-module Universe.Random exposing (genBody, genUniverse, FloatPair, BodyParams)
+module Universe.Random exposing (BodyParams, FloatPair, genBody, genUniverse)
 
 import Random as R
 import Random.Float as RF
-import Universe.Model.Body exposing (G, DT, Body, body)
+import Universe.Model.Body exposing (Body, DT, G, body)
 import Universe.Model.Universe exposing (Universe, bang)
 
 
@@ -34,10 +34,10 @@ genBody { massRange, velocityRange, positionRange } =
         randMass =
             R.map abs (RF.normal 0 stdMass)
     in
-        R.map3 body
-            (R.map (\m -> m + minMass) randMass)
-            (randomPairFloat velocityRange)
-            (randomPairFloat positionRange)
+    R.map3 body
+        (R.map (\m -> m + minMass) randMass)
+        (randomPairFloat velocityRange)
+        (randomPairFloat positionRange)
 
 
 genBodies : Int -> BodyParams -> R.Generator (List Body)

@@ -1,32 +1,33 @@
 module Universe.View
     exposing
-        ( Msg(..)
-        , Model
+        ( Model
+        , Msg(..)
+        , getRandomUniverse
         , init
+        , subscriptions
         , update
         , view
-        , subscriptions
-        , getRandomUniverse
         )
 
+import Browser.Events exposing (onAnimationFrame)
 import Html exposing (..)
+import Math.Vector2 exposing (toRecord)
 import Random
-import Svg exposing (svg, rect, circle)
+import Svg exposing (circle, rect, svg)
 import Svg.Attributes as Svga exposing (..)
-import Math.Vector2 exposing (toTuple)
-import Universe.Random exposing (genUniverse, BodyParams)
+import String
+import Time exposing (Posix)
+import Universe.Model.Body exposing (Body, DT, G)
 import Universe.Model.Universe as Universe
     exposing
         ( Universe
-        , setG
-        , setDT
-        , setN
-        , getBodies
         , empty
+        , getBodies
+        , setDT
+        , setG
+        , setN
         )
-import Universe.Model.Body exposing (Body, G, DT)
-import Time exposing (Time)
-import AnimationFrame
+import Universe.Random exposing (BodyParams, genUniverse)
 
 
 type alias Model =
@@ -38,7 +39,7 @@ type alias Model =
 
 type Msg
     = Noop
-    | Tick Time
+    | Tick Posix
     | SetG Float
     | SetDT Float
     | SetN Int
@@ -49,11 +50,12 @@ type Msg
 
 init : ( Model, Cmd Msg )
 init =
-    { universe = empty
-    , paused = True
-    , initialized = False
-    }
-        ! []
+    ( { universe = empty
+      , paused = True
+      , initialized = False
+      }
+    , Cmd.none
+    )
 
 
 getRandomUniverse : G -> DT -> Int -> BodyParams -> Msg
@@ -65,34 +67,50 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg ({ universe } as model) =
     case msg of
         Noop ->
-            model ! []
+            ( model
+            , Cmd.none
+            )
 
         GetRandomUniverse g dt n params ->
-            model ! [ Random.generate RandomUniverseArrived (genUniverse g dt n params) ]
+            ( model
+            , Random.generate RandomUniverseArrived (genUniverse g dt n params)
+            )
 
-        RandomUniverseArrived universe ->
-            { model | universe = universe, initialized = True } ! []
+        RandomUniverseArrived newUniverse ->
+            ( { model | universe = newUniverse, initialized = True }
+            , Cmd.none
+            )
 
         TogglePaused ->
-            { model | paused = not model.paused } ! []
+            ( { model | paused = not model.paused }
+            , Cmd.none
+            )
 
         SetG g ->
-            { model | universe = (setG g universe) } ! []
+            ( { model | universe = setG g universe }
+            , Cmd.none
+            )
 
         SetDT dt ->
-            { model | universe = (setDT dt universe) } ! []
+            ( { model | universe = setDT dt universe }
+            , Cmd.none
+            )
 
         SetN n ->
-            { model | universe = (setN n universe) } ! []
+            ( { model | universe = setN n universe }
+            , Cmd.none
+            )
 
         Tick _ ->
-            { model | universe = (Universe.update universe) } ! []
+            ( { model | universe = Universe.update universe }
+            , Cmd.none
+            )
 
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
     if not model.paused && model.initialized then
-        AnimationFrame.times Tick
+        onAnimationFrame Tick
     else
         Sub.none
 
@@ -102,7 +120,7 @@ view ( width, height ) model =
     let
         box =
             [ 0, 0, width, height ]
-                |> List.map toString
+                |> List.map String.fromInt
                 |> String.join " "
     in
         [ rect [ Svga.fill "black", Svga.width "100%", Svga.height "100%" ] []
@@ -118,13 +136,13 @@ view ( width, height ) model =
 viewBody : Body -> Html msg
 viewBody { radious, mass, position } =
     let
-        ( x, y ) =
-            (toTuple position)
+        { x, y } =
+            toRecord position
     in
         circle
-            [ cx (toString x)
-            , cy (toString y)
-            , r (radious |> toString)
+            [ cx (String.fromFloat x)
+            , cy (String.fromFloat y)
+            , r (radious |> String.fromFloat)
             , fill "#ffffff"
             , fillOpacity "0.8"
             ]
