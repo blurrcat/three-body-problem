@@ -1,19 +1,17 @@
-const path = require("path");
-const env = process.env.NODE_ENV ? process.env.NODE_ENV : 'development';
-const HtmlWebpackPlugin = require('html-webpack-plugin');
-
+const path = require('path')
+const env = process.env.NODE_ENV ? process.env.NODE_ENV : 'development'
+const HtmlWebpackPlugin = require('html-webpack-plugin')
+const debug = env === 'development'
 
 module.exports = {
   mode: env,
   entry: {
-    app: [
-      './src/index.js'
-    ]
+    app: ['./src/index.js']
   },
 
   plugins: [
     new HtmlWebpackPlugin({
-      title: "Three Body",
+      title: 'Three Body',
       meta: {
         viewport: 'width=device-width, initial-scale=1'
       },
@@ -23,49 +21,45 @@ module.exports = {
 
   output: {
     path: path.resolve(__dirname + '/dist'),
-    filename: '[name].[chunkhash].js',
+    filename: '[name].[chunkhash].js'
   },
 
   module: {
     rules: [
       {
         test: /\.(css|scss)$/,
-        use: [
-          'style-loader',
-          'css-loader',
-        ]
+        use: ['style-loader', 'css-loader']
       },
       {
-        test:    /\.html$/,
+        test: /\.html$/,
         exclude: /node_modules/,
-        loader:  'file-loader?name=[name].[ext]',
+        loader: 'file-loader?name=[name].[ext]'
       },
       {
-        test:    /\.elm$/,
+        test: /\.elm$/,
         exclude: [/elm-stuff/, /node_modules/],
-        loader:  'elm-webpack-loader?verbose=true&warn=true',
+        loader: 'elm-webpack-loader?verbose=true&warn=true',
         options: {
-          debug: env == 'development'
+          debug: debug,
+          optimize: !debug
         }
       },
       {
         test: /\.woff(2)?(\?v=[0-9]\.[0-9]\.[0-9])?$/,
-        loader: 'url-loader?limit=10000&mimetype=application/font-woff',
+        loader: 'url-loader?limit=10000&mimetype=application/font-woff'
       },
       {
         test: /\.(ttf|eot|svg)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
-        loader: 'file-loader',
-      },
+        loader: 'file-loader'
+      }
     ],
 
-    noParse: /\.elm$/,
+    noParse: /\.elm$/
   },
 
   devServer: {
     inline: true,
     compress: true,
-    stats: { colors: true },
-  },
-
-
-};
+    stats: { colors: true }
+  }
+}
