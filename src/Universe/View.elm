@@ -1,21 +1,21 @@
-module Universe.View
-    exposing
-        ( Model
-        , Msg(..)
-        , getRandomUniverse
-        , init
-        , subscriptions
-        , update
-        , view
-        )
+module Universe.View exposing
+    ( Model
+    , Msg(..)
+    , getRandomUniverse
+    , init
+    , subscriptions
+    , update
+    , view
+    )
 
 import Browser.Events exposing (onAnimationFrame)
 import Html exposing (..)
-import Math.Vector2 exposing (toRecord)
+import Math.Vector2 exposing (getX, getY, toRecord)
+import Queue
 import Random
-import Svg exposing (circle, rect, svg)
-import Svg.Attributes as Svga exposing (..)
 import String
+import Svg exposing (circle, g, polyline, rect, svg)
+import Svg.Attributes as Svga exposing (..)
 import Time exposing (Posix)
 import Universe.Model.Body exposing (Body, DT, G)
 import Universe.Model.Universe as Universe
@@ -111,6 +111,7 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     if not model.paused && model.initialized then
         onAnimationFrame Tick
+
     else
         Sub.none
 
@@ -123,27 +124,46 @@ view ( width, height ) model =
                 |> List.map String.fromInt
                 |> String.join " "
     in
-        [ rect [ Svga.fill "black", Svga.width "100%", Svga.height "100%" ] []
-            :: (model.universe
-                    |> getBodies
-                    |> List.map viewBody
-               )
-            |> svg
-                [ viewBox box ]
-        ]
+    [ rect [ Svga.fill "black", Svga.width "100%", Svga.height "100%" ] []
+        :: (model.universe
+                |> getBodies
+                |> List.map viewBody
+           )
+        |> svg
+            [ viewBox box ]
+    ]
 
 
 viewBody : Body -> Html msg
-viewBody { radious, mass, position } =
+viewBody { radious, mass, position, positionHistory } =
     let
         { x, y } =
             toRecord position
+
+        toPoint p =
+            String.fromFloat (getX p) ++ "," ++ String.fromFloat (getY p)
+
+        path =
+            positionHistory
+                |> Queue.map toPoint
+                |> Queue.toList
+                |> String.join " "
     in
-        circle
+    g []
+        [ circle
             [ cx (String.fromFloat x)
             , cy (String.fromFloat y)
             , r (radious |> String.fromFloat)
-            , fill "#ffffff"
             , fillOpacity "0.8"
+            , fill "#ffffff"
             ]
             []
+        , polyline
+            [ points path
+            , fill "none"
+            , stroke "#ffffff"
+            , strokeOpacity "0.2"
+            , strokeWidth (String.fromFloat (radious / 3))
+            ]
+            []
+        ]
