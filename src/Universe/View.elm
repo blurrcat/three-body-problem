@@ -11,8 +11,8 @@ module Universe.View exposing
 import Browser.Events exposing (onAnimationFrame)
 import Html exposing (..)
 import Math.Vector2 exposing (getX, getY, toRecord)
-import Queue
 import Random
+import RingBuffer
 import String
 import Svg exposing (circle, g, polyline, rect, svg)
 import Svg.Attributes as Svga exposing (..)
@@ -144,9 +144,13 @@ viewBody { radious, mass, position, positionHistory } =
             String.fromFloat (getX p) ++ "," ++ String.fromFloat (getY p)
 
         path =
+            -- positionHistory
+            --     |> Queue.map toPoint
+            --     |> Queue.toList
+            --     |> String.join " "
             positionHistory
-                |> Queue.map toPoint
-                |> Queue.toList
+                |> RingBuffer.toList
+                |> List.map toPoint
                 |> String.join " "
     in
     g []
@@ -163,7 +167,7 @@ viewBody { radious, mass, position, positionHistory } =
             , fill "none"
             , stroke "#ffffff"
             , strokeOpacity "0.2"
-            , strokeWidth (String.fromFloat (radious / 3))
+            , strokeWidth (String.fromFloat (radious / 4))
             ]
             []
         ]

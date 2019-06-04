@@ -8,7 +8,7 @@ module Universe.Model.Body exposing
     )
 
 import Math.Vector2 exposing (..)
-import Queue exposing (Queue)
+import RingBuffer exposing (RingBuffer)
 
 
 type alias Force =
@@ -29,7 +29,7 @@ type alias Body =
     , radious : Float
     , velocity : Vec2
     , position : Vec2
-    , positionHistory : Queue Vec2
+    , positionHistory : RingBuffer Vec2
     }
 
 
@@ -40,7 +40,13 @@ fromTuple ( x, y ) =
 
 body : Float -> ( Float, Float ) -> ( Float, Float ) -> Body
 body mass velocity position =
-    Body 0 mass (sqrt mass) (fromTuple velocity) (fromTuple position) (Queue.empty 50)
+    { id = 0
+    , mass = mass
+    , radious = sqrt mass
+    , velocity = fromTuple velocity
+    , position = fromTuple position
+    , positionHistory = RingBuffer.initialize 50 (\_ -> vec2 0 0)
+    }
 
 
 getR : Body -> Float
@@ -155,7 +161,7 @@ applyForce dt b force =
     { b
         | velocity = newVelocity
         , position = newPosition
-        , positionHistory = Queue.push position positionHistory
+        , positionHistory = RingBuffer.push position positionHistory
     }
 
 
