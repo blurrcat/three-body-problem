@@ -1,14 +1,14 @@
-module Universe.Model.Body
-    exposing
-        ( Body
-        , DT
-        , Force
-        , G
-        , body
-        , update
-        )
+module Universe.Model.Body exposing
+    ( Body
+    , DT
+    , Force
+    , G
+    , body
+    , update
+    )
 
 import Math.Vector2 exposing (..)
+import RingBuffer exposing (RingBuffer)
 
 
 type alias Force =
@@ -29,6 +29,7 @@ type alias Body =
     , radious : Float
     , velocity : Vec2
     , position : Vec2
+    , positionHistory : RingBuffer Vec2
     }
 
 
@@ -39,7 +40,13 @@ fromTuple ( x, y ) =
 
 body : Float -> ( Float, Float ) -> ( Float, Float ) -> Body
 body mass velocity position =
-    Body 0 mass (sqrt mass) (fromTuple velocity) (fromTuple position)
+    { id = 0
+    , mass = mass
+    , radious = sqrt mass
+    , velocity = fromTuple velocity
+    , position = fromTuple position
+    , positionHistory = RingBuffer.initialize 50 (\_ -> vec2 0 0)
+    }
 
 
 getR : Body -> Float
@@ -68,7 +75,7 @@ update bodies g dt me =
         forceCollided =
             getForceCollided dt g me bodiesCollided
     in
-        applyForce dt me (add forceNotCollided forceCollided)
+    applyForce dt me (add forceNotCollided forceCollided)
 
 
 
@@ -103,10 +110,11 @@ getForceNotCollided g me bodyDist =
         delta =
             sub b.position me.position
     in
-        if dist == 0 then
-            vec2 0 0
-        else
-            scale (g * me.mass * b.mass / (dist ^ 3)) delta
+    if dist == 0 then
+        vec2 0 0
+
+    else
+        scale (g * me.mass * b.mass / (dist ^ 3)) delta
 
 
 getForceCollided : DT -> G -> Body -> List BodyDist -> Force
@@ -128,15 +136,15 @@ getForceCollided dt g me bodyDists =
                 |> sumVec
                 |> scale (1 / totalMass)
     in
-        me.velocity
-            |> sub newVelocity
-            |> scale (me.mass / dt)
+    me.velocity
+        |> sub newVelocity
+        |> scale (me.mass / dt)
 
 
 applyForce : DT -> Body -> Force -> Body
 applyForce dt b force =
     let
-        { mass, velocity, position } =
+        { mass, velocity, position, positionHistory } =
             b
 
         newVelocity =
@@ -150,7 +158,11 @@ applyForce dt b force =
                 |> scale (dt * 0.5)
                 |> add position
     in
-        { b | velocity = newVelocity, position = newPosition }
+    { b
+        | velocity = newVelocity
+        , position = newPosition
+        , positionHistory = RingBuffer.push position positionHistory
+    }
 
 
 type alias BodyDist =
