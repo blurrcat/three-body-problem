@@ -4,9 +4,9 @@ import Browser
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
+import String
 import Universe.Random exposing (BodyParams)
 import Universe.View as U
-import String
 
 
 type alias Model =
@@ -59,21 +59,21 @@ init _ =
         ( universe, cmd ) =
             U.init |> wrapUniverseState
     in
-        ( { universe = universe
-          , bodyParams =
-                { massRange = ( 0.01, 0.5 )
-                , velocityRange = ( -1.8, 1.8 )
-                , positionRange = ( 0.0, 99.0 )
-                }
-          , fieldN = String.fromInt universe.universe.n
-          , errorN = ""
-          , fieldG = String.fromFloat universe.universe.g
-          , errorG = ""
-          , fieldDT = String.fromFloat universe.universe.dt
-          , errorDT = ""
-          }
-        , cmd
-        )
+    ( { universe = universe
+      , bodyParams =
+            { massRange = ( 0.01, 0.5 )
+            , velocityRange = ( -1.8, 1.8 )
+            , positionRange = ( 0.0, 99.0 )
+            }
+      , fieldN = String.fromInt universe.universe.n
+      , errorN = ""
+      , fieldG = String.fromFloat universe.universe.g
+      , errorG = ""
+      , fieldDT = String.fromFloat universe.universe.dt
+      , errorDT = ""
+      }
+    , cmd
+    )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -89,9 +89,9 @@ update msg ({ universe } as model) =
                 ( newUniverse, cmds ) =
                     U.update uMsg model.universe |> wrapUniverseState
             in
-                ( { model | universe = newUniverse }
-                , cmds
-                )
+            ( { model | universe = newUniverse }
+            , cmds
+            )
 
         ChangeG raw ->
             case String.toFloat raw of
@@ -152,72 +152,73 @@ viewControls attrs ({ universe, bodyParams } as model) =
         playBtnText =
             if universe.paused then
                 "Go!"
+
             else
                 "pause"
     in
-        div attrs
-            [ div [ style "padding" "0.5em" ]
-                [ Html.form
-                    [ class "pure-form pure-form-stacked"
+    div attrs
+        [ div [ style "padding" "0.5em" ]
+            [ Html.form
+                [ class "pure-form pure-form-stacked"
+                ]
+                [ fieldset []
+                    [ legend []
+                        [ text "Big Bang Params" ]
+                    , viewNumberInput "N" "# of bodies" model.fieldN model.errorN ChangeN
                     ]
-                    [ fieldset []
-                        [ legend []
-                            [ text "Big Bang Params" ]
-                        , viewNumberInput "N" "# of bodies" model.fieldN model.errorN ChangeN
+                ]
+            , div []
+                [ div [ class "pure-u-1-2" ]
+                    [ button
+                        [ class "pure-button"
+                        , onClick
+                            (U.getRandomUniverse
+                                u.g
+                                u.dt
+                                u.n
+                                bodyParams
+                                |> wrapUniverseMsg
+                            )
                         ]
+                        [ text "Bang!" ]
                     ]
-                , div []
-                    [ div [ class "pure-u-1-2" ]
-                        [ button
-                            [ class "pure-button"
-                            , onClick
-                                (U.getRandomUniverse
-                                    u.g
-                                    u.dt
-                                    u.n
-                                    bodyParams
-                                    |> wrapUniverseMsg
-                                )
-                            ]
-                            [ text "Bang!" ]
-                        ]
+                ]
+            , Html.form
+                [ class "pure-form pure-form-stacked"
+                , style "margin-top" "0.5em"
+                ]
+                [ fieldset []
+                    [ legend []
+                        [ text "Realtime Params" ]
+                    , viewNumberInput
+                        "G"
+                        "gravitational constant"
+                        model.fieldG
+                        model.errorG
+                        ChangeG
+                    , viewNumberInput
+                        "DT"
+                        "speed of time"
+                        model.fieldDT
+                        model.errorDT
+                        ChangeDt
                     ]
-                , Html.form
-                    [ class "pure-form pure-form-stacked"
-                    , style "margin-top" "0.5em"
-                    ]
-                    [ fieldset []
-                        [ legend []
-                            [ text "Realtime Params" ]
-                        , viewNumberInput
-                            "G"
-                            "gravitational constant"
-                            model.fieldG
-                            model.errorG
-                            ChangeG
-                        , viewNumberInput
-                            "DT"
-                            "speed of time"
-                            model.fieldDT
-                            model.errorDT
-                            ChangeDt
-                        ]
-                    ]
+                ]
 
-                -- controls
-                , div
-                    [ class "pure-g" ]
-                    [ div [ class "pure-u-1-2" ]
-                        [ button
-                            [ class "pure-button"
-                            , onClick (U.TogglePaused |> wrapUniverseMsg)
-                            , disabled (not universe.initialized)
-                            ]
-                            [ text playBtnText ]
+            -- controls
+            , div
+                [ class "pure-g" ]
+                [ div [ class "pure-u-1-2" ]
+                    [ button
+                        [ class "pure-button"
+                        , onClick (U.TogglePaused |> wrapUniverseMsg)
+                        , disabled (not universe.initialized)
                         ]
+                        [ text playBtnText ]
                     ]
                 ]
             ]
+        ]
 
 
 viewNumberInput : String -> String -> String -> String -> (String -> Msg) -> Html Msg
