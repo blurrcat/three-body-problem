@@ -17,27 +17,41 @@ type alias BodyParams =
     }
 
 
-randomPairFloat : FloatPair -> R.Generator ( Float, Float )
-randomPairFloat ( v1, v2 ) =
-    R.pair (R.float v1 v2) (R.float v1 v2)
+sqrt12 =
+    sqrt 12
+
+
+randomNormal : FloatPair -> R.Generator Float
+randomNormal ( min, max ) =
+    RF.normal
+        ((max - min) / 2.0 + min)
+        ((max - min) / sqrt12)
+
+
+randomNormalPositive : FloatPair -> R.Generator Float
+randomNormalPositive ( min, max ) =
+    RF.normal
+        0
+        ((max - min) / sqrt12)
+        |> R.map (\v -> abs v + min)
+
+
+randomUniformPair : FloatPair -> R.Generator FloatPair
+randomUniformPair ( min, max ) =
+    R.pair (R.float min max) (R.float min max)
+
+
+randomNormalPair : FloatPair -> R.Generator FloatPair
+randomNormalPair range =
+    R.pair (randomNormal range) (randomNormal range)
 
 
 genBody : BodyParams -> R.Generator Body
 genBody { massRange, velocityRange, positionRange } =
-    let
-        ( minMass, maxMass ) =
-            massRange
-
-        stdMass =
-            maxMass - minMass
-
-        randMass =
-            R.map abs (RF.normal 0 stdMass)
-    in
     R.map3 body
-        (R.map (\m -> m + minMass) randMass)
-        (randomPairFloat velocityRange)
-        (randomPairFloat positionRange)
+        (randomNormalPositive massRange)
+        (randomNormalPair velocityRange)
+        (randomUniformPair positionRange)
 
 
 genBodies : Int -> BodyParams -> R.Generator (List Body)

@@ -61,8 +61,8 @@ init _ =
     in
     ( { universe = universe
       , bodyParams =
-            { massRange = ( 0.01, 0.5 )
-            , velocityRange = ( -1.8, 1.8 )
+            { massRange = ( 0.01, 1 )
+            , velocityRange = ( -4, 4 )
             , positionRange = ( 0.0, 99.0 )
             }
       , fieldN = String.fromInt universe.universe.n

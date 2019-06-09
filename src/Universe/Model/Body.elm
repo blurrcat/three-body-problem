@@ -38,6 +38,10 @@ fromTuple ( x, y ) =
     fromRecord { x = x, y = y }
 
 
+positionHistorySize =
+    50
+
+
 body : Float -> ( Float, Float ) -> ( Float, Float ) -> Body
 body mass velocity position =
     { id = 0
@@ -45,7 +49,7 @@ body mass velocity position =
     , radious = sqrt mass
     , velocity = fromTuple velocity
     , position = fromTuple position
-    , positionHistory = RingBuffer.initialize 50 (\_ -> vec2 0 0)
+    , positionHistory = RingBuffer.initialize positionHistorySize (\_ -> vec2 0 0)
     }
 
 

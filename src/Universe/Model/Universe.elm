@@ -1,14 +1,13 @@
-module Universe.Model.Universe
-    exposing
-        ( Universe
-        , bang
-        , empty
-        , getBodies
-        , setDT
-        , setG
-        , setN
-        , update
-        )
+module Universe.Model.Universe exposing
+    ( Universe
+    , bang
+    , empty
+    , getBodies
+    , setDT
+    , setG
+    , setN
+    , update
+    )
 
 import Universe.Model.Body as Body exposing (Body, DT, Force, G)
 
@@ -49,18 +48,18 @@ bang n g dt bodies =
             bodies
                 |> List.indexedMap (\id body -> { body | id = id })
     in
-        { bodies = bodiesWithId
-        , g = g
-        , dt = dt
-        , n = n
-        , epoch = 0
-        }
+    { bodies = bodiesWithId
+    , g = g
+    , dt = dt
+    , n = n
+    , epoch = 0
+    }
 
 
 empty : Universe
 empty =
     { bodies = []
-    , g = 50
+    , g = 25
     , dt = 0.04
     , n = 150
     , epoch = 0
@@ -74,4 +73,4 @@ update ({ bodies, g, dt, epoch } as universe) =
             universe.bodies
                 |> List.map (Body.update bodies g dt)
     in
-        { universe | bodies = newBodies, epoch = epoch + 1 }
+    { universe | bodies = newBodies, epoch = epoch + 1 }

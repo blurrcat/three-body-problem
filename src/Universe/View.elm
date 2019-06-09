@@ -124,7 +124,7 @@ view ( width, height ) model =
                 |> List.map String.fromInt
                 |> String.join " "
     in
-    [ rect [ Svga.fill "black", Svga.width "100%", Svga.height "100%" ] []
+    [ rect [ Svga.fill "#113", Svga.width "100%", Svga.height "100%" ] []
         :: (model.universe
                 |> getBodies
                 |> List.map viewBody
@@ -144,10 +144,6 @@ viewBody { radious, mass, position, positionHistory } =
             String.fromFloat (getX p) ++ "," ++ String.fromFloat (getY p)
 
         path =
-            -- positionHistory
-            --     |> Queue.map toPoint
-            --     |> Queue.toList
-            --     |> String.join " "
             positionHistory
                 |> RingBuffer.toList
                 |> List.map toPoint
