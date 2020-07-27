@@ -46,24 +46,19 @@ body : Float -> ( Float, Float ) -> ( Float, Float ) -> Body
 body mass velocity position =
     { id = 0
     , mass = mass
-    , radious = sqrt mass
+    , radious = getR mass
     , velocity = fromTuple velocity
     , position = fromTuple position
     , positionHistory = RingBuffer.initialize positionHistorySize (\_ -> vec2 0 0)
     }
 
 
-getR : Body -> Float
-getR b =
-    sqrt b.mass
+getR : Float -> Float
+getR mass =
+    sqrt mass / 2
 
 
-setId : Int -> Body -> Body
-setId id b =
-    { b | id = id }
-
-
-update : List Body -> G -> DT -> Body -> Body
+update : List Body -> G -> DT -> Body -> Maybe Body
 update bodies g dt me =
     let
         ( bodiesCollided, bodiesNotCollided ) =
@@ -71,15 +66,16 @@ update bodies g dt me =
                 |> List.map (getDist me)
                 |> List.partition (shouldCollide me)
 
-        forceNotCollided =
-            bodiesNotCollided
-                |> List.map (getForceNotCollided g me)
-                |> sumVec
+        meAfterCollision =
+            handleCollision me bodiesCollided
 
-        forceCollided =
-            getForceCollided dt g me bodiesCollided
+        handleNotCollided b =
+            bodiesNotCollided
+                |> List.map (getForceNotCollided g b)
+                |> sumVec
+                |> applyForce dt b
     in
-    applyForce dt me (add forceNotCollided forceCollided)
+    Maybe.map handleNotCollided meAfterCollision
 
 
 
@@ -88,7 +84,10 @@ update bodies g dt me =
 
 shouldCollide : Body -> BodyDist -> Bool
 shouldCollide me bodyDist =
-    bodyDist.dist < (me.radious + bodyDist.body.radious)
+    -- previously dist < r1 + r2 was used. However that resulted in jumpy
+    -- animation when 2 bodies collide, especially when they have large radious
+    -- this allows the bodies to move closer to each other
+    bodyDist.dist < me.radious || bodyDist.dist < bodyDist.body.radious
 
 
 getMomentum : Body -> Vec2
@@ -120,29 +119,39 @@ getForceNotCollided g me bodyDist =
     else
         scale (g * me.mass * b.mass / (dist ^ 3)) delta
 
+-- When a bunch of bodies collide, they are deterministically merged into one.
+-- The one with the biggest mass wins, as that gives the best visual effect.
+-- If the current body is absorbed, Nothing is returned
+handleCollision : Body -> List BodyDist -> Maybe Body
+handleCollision me bodiesCollided =
+    if List.isEmpty bodiesCollided then
+        Just me
 
-getForceCollided : DT -> G -> Body -> List BodyDist -> Force
-getForceCollided dt g me bodyDists =
-    let
-        bodies =
-            bodyDists
-                |> List.map .body
-                |> (::) me
+    else
+        let
+            isTheMostMassive =
+                List.all (\other -> me.mass >= other.body.mass) bodiesCollided
+        in
+        if isTheMostMassive then
+            let
+                totalMass =
+                    List.map (.body >> .mass) bodiesCollided |> List.sum
 
-        totalMass =
-            bodies
-                |> List.map .mass
-                |> List.sum
+                totalMomentum =
+                    List.map (.body >> getMomentum) bodiesCollided |> sumVec
 
-        newVelocity =
-            bodies
-                |> List.map getMomentum
-                |> sumVec
-                |> scale (1 / totalMass)
-    in
-    me.velocity
-        |> sub newVelocity
-        |> scale (me.mass / dt)
+                velocity =
+                    scale (1 / totalMass) totalMomentum
+            in
+            Just
+                { me
+                    | mass = totalMass
+                    , radious = getR totalMass
+                    , velocity = velocity
+                }
+
+        else
+            Nothing
 
 
 applyForce : DT -> Body -> Force -> Body

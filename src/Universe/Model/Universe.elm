@@ -71,6 +71,6 @@ update ({ bodies, g, dt, epoch } as universe) =
     let
         newBodies =
             universe.bodies
-                |> List.map (Body.update bodies g dt)
+                |> List.filterMap (Body.update bodies g dt)
     in
     { universe | bodies = newBodies, epoch = epoch + 1 }
