@@ -1,4 +1,5 @@
 version: 2.1
+
 jobs:
   build:
     docker:
@@ -22,15 +23,13 @@ jobs:
           key: elm-19-{{ checksum "elm.json" }}
           paths:
             - "./elm-stuff"
-      - deploy:
-          command: |
-            if [ "${CIRCLE_BRANCH}" == "master" ]; then
-              cat >> ~/.ssh/config << EOF
-              VerifyHostKeyDNS yes
-              StrictHostKeyChecking no
-            EOF
-              git remote add dokku dokku@seattle.blurrcat.net:g
-              git config user.name "blurrcat"
-              git config user.email "blurrcat@gmail.com"
-              ./deploy.sh
-            fi
+      - run: |
+          if [ "${CIRCLE_BRANCH}" == "master" ]; then
+            echo "VerifyHostKeyDNS yes" >> ~/.ssh/config
+            echo "StrictHostKeyChecking no" >> ~/.ssh/config
+          EOF
+            git remote add dokku dokku@seattle.blurrcat.net:g
+            git config user.name "blurrcat"
+            git config user.email "blurrcat@gmail.com"
+            ./deploy.sh
+          fi
