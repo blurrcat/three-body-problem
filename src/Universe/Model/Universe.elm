@@ -9,10 +9,18 @@ module Universe.Model.Universe exposing
     , update
     )
 
-import Universe.Model.Body as Body exposing (Body, DT, Force, G)
+import Universe.Model.Body as Body
+    exposing
+        ( Body
+        , BodyDist
+        , DT
+        , Force
+        , G
+        )
 
 
 type alias Universe =
+    -- TODO: change to Array for better performance
     { bodies : List Body
     , g : G
     , dt : DT
@@ -69,8 +77,30 @@ empty =
 update : Universe -> Universe
 update ({ bodies, g, dt, epoch } as universe) =
     let
+        updateBody b =
+            let
+                -- bodyDists = getBodyDists bodies b
+                (bodiesCollided, bodiesNotCollided) =
+                    getBodyDists bodies b
+                    |> List.partition (shouldCollide b) 
+            in
+                Body.update g dt bodiesCollided bodiesNotCollided b
         newBodies =
             universe.bodies
-                |> List.filterMap (Body.update bodies g dt)
+                |> List.filterMap updateBody
     in
     { universe | bodies = newBodies, epoch = epoch + 1 }
+
+
+getBodyDists : List Body -> Body -> List BodyDist
+getBodyDists others b =
+    List.map (Body.getDist b) others
+
+
+shouldCollide : Body -> BodyDist -> Bool
+shouldCollide me bodyDist =
+    -- previously dist < r1 + r2 was used. However that resulted in jumpy
+    -- animation when 2 bodies collide, especially when they have large radious
+    -- this allows the bodies to move closer to each other
+    bodyDist.dist < me.radious || bodyDist.dist < bodyDist.body.radious
+

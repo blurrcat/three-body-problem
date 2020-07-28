@@ -1,9 +1,11 @@
 module Universe.Model.Body exposing
     ( Body
+    , BodyDist
     , DT
     , Force
     , G
     , body
+    , getDist
     , update
     )
 
@@ -58,14 +60,9 @@ getR mass =
     sqrt mass / 2
 
 
-update : List Body -> G -> DT -> Body -> Maybe Body
-update bodies g dt me =
+update : G -> DT -> List BodyDist -> List BodyDist -> Body -> Maybe Body
+update g dt bodiesCollided bodiesNotCollided me =
     let
-        ( bodiesCollided, bodiesNotCollided ) =
-            bodies
-                |> List.map (getDist me)
-                |> List.partition (shouldCollide me)
-
         meAfterCollision =
             handleCollision me bodiesCollided
 
@@ -80,16 +77,6 @@ update bodies g dt me =
 
 
 -- INTERNAL
-
-
-shouldCollide : Body -> BodyDist -> Bool
-shouldCollide me bodyDist =
-    -- previously dist < r1 + r2 was used. However that resulted in jumpy
-    -- animation when 2 bodies collide, especially when they have large radious
-    -- this allows the bodies to move closer to each other
-    bodyDist.dist < me.radious || bodyDist.dist < bodyDist.body.radious
-
-
 getMomentum : Body -> Vec2
 getMomentum b =
     scale b.mass b.velocity
@@ -119,9 +106,13 @@ getForceNotCollided g me bodyDist =
     else
         scale (g * me.mass * b.mass / (dist ^ 3)) delta
 
+
+
 -- When a bunch of bodies collide, they are deterministically merged into one.
 -- The one with the biggest mass wins, as that gives the best visual effect.
 -- If the current body is absorbed, Nothing is returned
+
+
 handleCollision : Body -> List BodyDist -> Maybe Body
 handleCollision me bodiesCollided =
     if List.isEmpty bodiesCollided then
