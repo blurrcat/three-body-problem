@@ -1,11 +1,15 @@
 module QuadTree exposing
     ( QuadTree
     , addPoint
-    , map
+    , empty
+    , getValue
+    , summarize
     , takeWhile
+    , map
     )
 
-import QuadTree.Box as B exposing (Box, Point, Quadrant)
+import Point exposing (Point)
+import QuadTree.Box as B exposing (Box, Quadrant)
 
 
 type QuadTree a
@@ -13,62 +17,68 @@ type QuadTree a
     | EmptyLeaf Box
     | Leaf Box a
 
+empty : Box -> QuadTree a
+empty b =
+    EmptyLeaf b
+
+
+getValue : QuadTree a -> Maybe a
+getValue t =
+    case t of
+        Branch _ a _ ->
+            Just a
+
+        EmptyLeaf _ ->
+            Nothing
+
+        Leaf _ a ->
+            Just a
+
 
 addPoint : Point -> a -> QuadTree a -> QuadTree a
 addPoint p a t =
     case t of
-        Branch b _ subtrees ->
-            B.quad p b subtrees
-                |> addPoint p a
+        Branch b v subtrees ->
+            subtrees
+            |> B.updateQuadrant p b (addPoint p a)
+            |> Branch b v
 
         EmptyLeaf b ->
             Leaf b a
 
         Leaf b leafValue ->
-            -- split into a branch and insert the point
             B.split b EmptyLeaf
                 |> Branch b leafValue
                 |> addPoint (B.getCenter b) leafValue
                 |> addPoint p a
 
 
-map : (a -> b) -> (Subtrees a -> b) -> QuadTree a -> QuadTree b
-map mapLeaf mapBranch t =
+summarize : (Subtrees a -> a) -> QuadTree a -> QuadTree a
+summarize f t =
     case t of
         Branch b _ subtrees ->
-            Branch b
-                (mapBranch subtrees)
-                (B.mapQuadrant (map mapLeaf mapBranch) subtrees)
+            let
+                newSubtrees =
+                    B.mapQuadrant (summarize f) subtrees
+            in
+            Branch b (f newSubtrees) newSubtrees
 
+        _ ->
+            t
+
+
+map :(a->b) -> QuadTree a -> QuadTree b
+map f t =
+    case t of
+        Branch b v subtrees ->
+            Branch b (f v)
+                (B.mapQuadrant (map f) subtrees)
         EmptyLeaf b ->
             EmptyLeaf b
 
         Leaf b v ->
-            Leaf b (mapLeaf v)
+            Leaf b (f v)
 
-
-
--- takeWhile : (a -> Bool) -> QuadTree a -> List a
--- takeWhile =
---     takeWhileInternal []
--- takeWhileInternal : List a -> (a -> Bool) -> QuadTree a -> List a
--- takeWhileInternal result pred t =
---     case t of
---         Branch _ v subtrees ->
---             let
---                 took =
---                     if pred v then
---                         subtrees
---                             |> B.mapQuadrant (takeWhileInternal [] pred)
---                             |> B.foldQuadrant List.append []
---                     else
---                         [ v ]
---             in
---             List.append took result
---         EmptyLeaf _ ->
---             result
---         Leaf _ v ->
---             v :: result
 
 
 takeWhile : (Box -> a -> Bool) -> QuadTree a -> List a

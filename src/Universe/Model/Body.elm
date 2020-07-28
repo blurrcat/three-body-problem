@@ -5,6 +5,7 @@ module Universe.Model.Body exposing
     , Force
     , G
     , body
+    , empty
     , getDist
     , update
     )
@@ -55,6 +56,11 @@ body mass velocity position =
     }
 
 
+empty : Body
+empty =
+    body 0 ( 0, 0 ) ( 0, 0 )
+
+
 getR : Float -> Float
 getR mass =
     sqrt mass / 2
@@ -77,6 +83,8 @@ update g dt bodiesCollided bodiesNotCollided me =
 
 
 -- INTERNAL
+
+
 getMomentum : Body -> Vec2
 getMomentum b =
     scale b.mass b.velocity

@@ -9,6 +9,12 @@ module Universe.Model.Universe exposing
     , update
     )
 
+-- import Debug
+
+import Math.Vector2 as V
+import Point as P
+import QuadTree as Q exposing (QuadTree)
+import QuadTree.Box as B exposing (Box)
 import Universe.Model.Body as Body
     exposing
         ( Body
@@ -64,6 +70,28 @@ bang n g dt bodies =
     }
 
 
+getBox : Universe -> Box
+getBox { bodies } =
+    let
+        xs =
+            List.map (.position >> V.getX) bodies
+
+        ys =
+            List.map (.position >> V.getY) bodies
+
+        getCorner f =
+            Maybe.map2 Tuple.pair (f xs) (f ys)
+                |> Maybe.withDefault ( 0, 0 )
+
+        lowerLeft =
+            getCorner List.minimum
+
+        topRight =
+            getCorner List.maximum
+    in
+    B.boundingBox lowerLeft topRight
+
+
 empty : Universe
 empty =
     { bodies = []
@@ -75,21 +103,31 @@ empty =
 
 
 update : Universe -> Universe
-update ({ bodies, g, dt, epoch } as universe) =
+update u =
     let
-        updateBody b =
-            let
-                -- bodyDists = getBodyDists bodies b
-                (bodiesCollided, bodiesNotCollided) =
-                    getBodyDists bodies b
-                    |> List.partition (shouldCollide b) 
-            in
-                Body.update g dt bodiesCollided bodiesNotCollided b
+        index =
+            indexUniverse u
+
         newBodies =
-            universe.bodies
-                |> List.filterMap updateBody
+            List.filterMap (updateBody index u) u.bodies
     in
-    { universe | bodies = newBodies, epoch = epoch + 1 }
+    { u | bodies = newBodies, epoch = u.epoch + 1 }
+
+
+updateBody : QuadTree Body -> Universe -> Body -> Maybe Body
+updateBody t { g, dt } b =
+    let
+        theta =
+            0.5
+
+        bodies =
+            getRelatedBodies t theta b
+
+        ( bodiesCollided, bodiesNotCollided ) =
+            getBodyDists bodies b
+                |> List.partition (shouldCollide b)
+    in
+    Body.update g dt bodiesCollided bodiesNotCollided b
 
 
 getBodyDists : List Body -> Body -> List BodyDist
@@ -104,3 +142,46 @@ shouldCollide me bodyDist =
     -- this allows the bodies to move closer to each other
     bodyDist.dist < me.radious || bodyDist.dist < bodyDist.body.radious
 
+
+getRelatedBodies : QuadTree Body -> Float -> Body -> List Body
+getRelatedBodies t theta b =
+    let
+        isFarAway box centerOfMass =
+            (B.getSize box
+                / V.distance b.position centerOfMass.position
+            )
+                >= theta
+    in
+    Q.takeWhile isFarAway t
+
+
+indexUniverse : Universe -> QuadTree Body
+indexUniverse ({ bodies } as u) =
+    let
+        t0 =
+            Q.empty (getBox u)
+
+        -- add points
+        t =
+            List.foldl (\b -> Q.addPoint (P.fromVec b.position) b) t0 bodies
+
+        -- calculate center of mass
+        centerOfMass subtrees =
+            let
+                children =
+                    subtrees
+                        |> B.listQuadrant
+                        |> List.filterMap Q.getValue
+
+                totalMass =
+                    List.map .mass children |> List.sum
+
+                center =
+                    children
+                        |> List.map (\b -> V.scale (b.mass / totalMass) b.position)
+                        |> List.foldl V.add (V.vec2 0 0)
+                        |> P.fromVec
+            in
+            Body.body totalMass ( 0, 0 ) center
+    in
+    Q.summarize centerOfMass t

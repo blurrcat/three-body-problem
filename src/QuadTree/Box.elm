@@ -1,7 +1,7 @@
 module QuadTree.Box exposing
     ( Box
-    , Point
     , Quadrant
+    , boundingBox
     , box
     , foldQuadrant
     , getCenter
@@ -9,12 +9,11 @@ module QuadTree.Box exposing
     , listQuadrant
     , mapQuadrant
     , quad
+    , updateQuadrant
     , split
     )
 
-
-type alias Point =
-    ( Float, Float )
+import Point exposing (Point)
 
 
 type alias Quadrant a =
@@ -32,6 +31,31 @@ type Box
 box : Point -> Float -> Box
 box center size =
     Box center size
+
+
+boundingBox : Point -> Point -> Box
+boundingBox ( x0, y0 ) ( x1, y1 ) =
+    let
+        avg n1 n2 =
+            (n1 + n2) / 2.0
+
+        center =
+            ( avg x0 x1, avg y0 y1 )
+
+        w =
+            x1 - x0
+
+        h =
+            y1 - y0
+
+        size =
+            if h >= w then
+                h
+
+            else
+                w
+    in
+    box center size
 
 
 getSize : Box -> Float
@@ -83,6 +107,22 @@ mapQuadrant f q =
     , southeast = f q.southeast
     , northeast = f q.northeast
     }
+
+
+updateQuadrant : Point -> Box -> (a -> a) -> Quadrant a -> Quadrant a
+updateQuadrant ( px, py ) (Box ( cx, cy ) _) f q =
+    case ( px < cx, py < cy ) of
+        ( True, True ) ->
+            { q | southwest = f q.southwest }
+
+        ( True, False ) ->
+            { q | northwest = f q.northwest }
+
+        ( False, True ) ->
+            { q | southeast = f q.southeast }
+
+        ( False, False ) ->
+            { q | northeast = f q.northeast }
 
 
 foldQuadrant : (a -> b -> b) -> b -> Quadrant a -> b
