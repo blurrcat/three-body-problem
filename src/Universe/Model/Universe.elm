@@ -9,12 +9,11 @@ module Universe.Model.Universe exposing
     , update
     )
 
--- import Debug
-
 import Math.Vector2 as V
 import Point as P
 import QuadTree as Q exposing (QuadTree)
 import QuadTree.Box as B exposing (Box)
+import Set
 import Universe.Model.Body as Body
     exposing
         ( Body
@@ -95,7 +94,7 @@ getBox { bodies } =
 empty : Universe
 empty =
     { bodies = []
-    , g = 25
+    , g = 15
     , dt = 0.04
     , n = 150
     , epoch = 0
@@ -108,17 +107,33 @@ update u =
         index =
             indexUniverse u
 
-        newBodies =
+        newBodiesWithMerged =
             List.filterMap (updateBody index u) u.bodies
+
+        merged =
+            newBodiesWithMerged
+                |> List.map (Tuple.second >> List.map .id >> Set.fromList)
+                |> List.foldl Set.union Set.empty
+
+        newBodies =
+            newBodiesWithMerged
+                |> List.filterMap
+                    (\( body, _ ) ->
+                        if Set.member body.id merged then
+                            Nothing
+
+                        else
+                            Just body
+                    )
     in
     { u | bodies = newBodies, epoch = u.epoch + 1 }
 
 
-updateBody : QuadTree Body -> Universe -> Body -> Maybe Body
+updateBody : QuadTree Body -> Universe -> Body -> Body.UpdateResult
 updateBody t { g, dt } b =
     let
         theta =
-            0.5
+            1
 
         bodies =
             getRelatedBodies t theta b
@@ -137,10 +152,14 @@ getBodyDists others b =
 
 shouldCollide : Body -> BodyDist -> Bool
 shouldCollide me bodyDist =
-    -- previously dist < r1 + r2 was used. However that resulted in jumpy
-    -- animation when 2 bodies collide, especially when they have large radious
-    -- this allows the bodies to move closer to each other
-    bodyDist.dist < me.radious || bodyDist.dist < bodyDist.body.radious
+    if Body.isCenterOfMass bodyDist.body then
+        False
+        -- previously dist < r1 + r2 was used. However that resulted in jumpy
+        -- animation when 2 bodies collide, especially when they have large radious
+        -- this allows the bodies to move closer to each other
+
+    else
+        bodyDist.dist < me.radious || bodyDist.dist < bodyDist.body.radious
 
 
 getRelatedBodies : QuadTree Body -> Float -> Body -> List Body
@@ -153,6 +172,7 @@ getRelatedBodies t theta b =
                 >= theta
     in
     Q.takeWhile isFarAway t
+        |> List.filter (.id >> (/=) b.id)
 
 
 indexUniverse : Universe -> QuadTree Body
@@ -174,14 +194,19 @@ indexUniverse ({ bodies } as u) =
                         |> List.filterMap Q.getValue
 
                 totalMass =
-                    List.map .mass children |> List.sum
+                    children
+                        |> List.foldl (\b acc -> b.mass + acc) 0
 
                 center =
                     children
-                        |> List.map (\b -> V.scale (b.mass / totalMass) b.position)
-                        |> List.foldl V.add (V.vec2 0 0)
+                        |> List.foldl
+                            (\b acc ->
+                                V.scale (b.mass / totalMass) b.position
+                                    |> V.add acc
+                            )
+                            (V.vec2 0 0)
                         |> P.fromVec
             in
-            Body.body totalMass ( 0, 0 ) center
+            Body.centerOfMass totalMass center
     in
     Q.summarize centerOfMass t

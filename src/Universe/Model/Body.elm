@@ -4,13 +4,15 @@ module Universe.Model.Body exposing
     , DT
     , Force
     , G
+    , UpdateResult
     , body
-    , empty
+    , centerOfMass
     , getDist
+    , isCenterOfMass
     , update
     )
 
-import Math.Vector2 exposing (..)
+import Math.Vector2 as V exposing (..)
 import RingBuffer exposing (RingBuffer)
 
 
@@ -56,9 +58,20 @@ body mass velocity position =
     }
 
 
-empty : Body
-empty =
-    body 0 ( 0, 0 ) ( 0, 0 )
+centerOfMass : Float -> ( Float, Float ) -> Body
+centerOfMass mass position =
+    { id = -1
+    , mass = mass
+    , radious = 0
+    , velocity = V.vec2 0 0
+    , position = fromTuple position
+    , positionHistory = RingBuffer.initialize 0 (\_ -> V.vec2 0 0)
+    }
+
+
+isCenterOfMass : Body -> Bool
+isCenterOfMass { id } =
+    id == -1
 
 
 getR : Float -> Float
@@ -66,17 +79,19 @@ getR mass =
     sqrt mass / 2
 
 
-update : G -> DT -> List BodyDist -> List BodyDist -> Body -> Maybe Body
+update : G -> DT -> List BodyDist -> List BodyDist -> Body -> UpdateResult
 update g dt bodiesCollided bodiesNotCollided me =
     let
         meAfterCollision =
             handleCollision me bodiesCollided
 
-        handleNotCollided b =
-            bodiesNotCollided
+        handleNotCollided ( b, merged ) =
+            ( bodiesNotCollided
                 |> List.map (getForceNotCollided g b)
                 |> sumVec
                 |> applyForce dt b
+            , merged
+            )
     in
     Maybe.map handleNotCollided meAfterCollision
 
@@ -121,10 +136,36 @@ getForceNotCollided g me bodyDist =
 -- If the current body is absorbed, Nothing is returned
 
 
-handleCollision : Body -> List BodyDist -> Maybe Body
+type alias UpdateResult =
+    Maybe ( Body, List Body )
+
+
+{-|Some other bodies and me are "close" enough. What do I do?
+
+The simple rule is, whoever has the biggest mass in the cluster should
+"absorb" all others, while maintaining momentum of the cluster.
+
+To achieve this, it is vital that all bodies in the cluster make the same
+decision on whether it should aborb or be absorbed.
+
+With DirectMethod, all bodies in the group have the same view of the
+world - everyone can individually make decisions that others will agree.
+
+However with Barnes-Hub, they no longer have a consistent view of the
+world. For example,
+one body might be using the center of mass of the cell of the other body,
+while the other may be using the exact position of its companion.
+This leads to a situation where A thinks it aborbs B but B thinks it's
+still fine - a mass leak, if you will, has happened.
+
+To deal with this, for each body, the list of bodies one thinks it
+absorbed is returned. On the universe level, all those are removed regardless
+of their opinion, brutally ensuring consistency.
+-}
+handleCollision : Body -> List BodyDist -> UpdateResult
 handleCollision me bodiesCollided =
     if List.isEmpty bodiesCollided then
-        Just me
+        Just ( me, [] )
 
     else
         let
@@ -133,21 +174,26 @@ handleCollision me bodiesCollided =
         in
         if isTheMostMassive then
             let
+                allBodies =
+                    { body = me, dist = 0 } :: bodiesCollided
+
                 totalMass =
-                    List.map (.body >> .mass) bodiesCollided |> List.sum
+                    List.map (.body >> .mass) allBodies |> List.sum
 
                 totalMomentum =
-                    List.map (.body >> getMomentum) bodiesCollided |> sumVec
+                    List.map (.body >> getMomentum) allBodies |> sumVec
 
                 velocity =
                     scale (1 / totalMass) totalMomentum
             in
             Just
-                { me
+                ( { me
                     | mass = totalMass
                     , radious = getR totalMass
                     , velocity = velocity
-                }
+                  }
+                , List.map .body bodiesCollided
+                )
 
         else
             Nothing
