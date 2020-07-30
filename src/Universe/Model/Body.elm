@@ -1,6 +1,5 @@
 module Universe.Model.Body exposing
     ( Body
-    , BodyDist
     , CenterOfMass
     , DT
     , Force
@@ -8,12 +7,11 @@ module Universe.Model.Body exposing
     , MassDist
     , body
     , centerOfMass
-    , getDist
-    , getDists
     , update
     )
 
-import Math.Vector2 as V exposing (..)
+import Math.Vector2 as V exposing (Vec2)
+import Math.Vector2.Extra as VE
 import RingBuffer exposing (RingBuffer)
 
 
@@ -49,11 +47,7 @@ type alias CenterOfMass =
     Massed {}
 
 
-fromTuple : ( Float, Float ) -> Vec2
-fromTuple ( x, y ) =
-    fromRecord { x = x, y = y }
-
-
+positionHistorySize : Int
 positionHistorySize =
     30
 
@@ -63,9 +57,9 @@ body mass velocity position =
     { id = 0
     , mass = mass
     , radious = getR mass
-    , velocity = fromTuple velocity
-    , position = fromTuple position
-    , positionHistory = RingBuffer.initialize positionHistorySize (\_ -> vec2 0 0)
+    , velocity = VE.fromTuple velocity
+    , position = VE.fromTuple position
+    , positionHistory = RingBuffer.initialize positionHistorySize (always VE.origin)
     }
 
 
@@ -81,18 +75,36 @@ getR mass =
     sqrt mass / pi
 
 
-update : G -> DT -> List Body -> List (MassDist a) -> Body -> Maybe ( Body, List Body )
-update g dt bodiesCollided bodiesNotCollided me =
+update : G -> DT -> ( List CenterOfMass, List Body ) -> Body -> Maybe ( Body, List Body )
+update g dt ( centers, bodies ) me =
     let
+        ( bodiesCollidedWithDist, bodiesNotCollidedWithDist ) =
+            getDists bodies me
+                |> List.partition (shouldCollide me)
+
+        bodiesCollided =
+            List.map Tuple.first bodiesCollidedWithDist
+
+        -- Not collided:
+        -- calculating force only needs to know the position and mass of neighbors
+        -- convert to MassDist
+        centersDist =
+            getDists centers (centerOfMass me.mass me.position)
+
+        bodiesDist =
+            bodiesNotCollidedWithDist
+                |> List.map (Tuple.mapFirst (\b -> centerOfMass b.mass b.position))
+
+        notCollided =
+            List.append centersDist bodiesDist
+
         handleNotCollided newMe =
-            bodiesNotCollided
-                |> List.map (getForceNotCollided g newMe)
-                |> sumVec
+            notCollided
+                |> getCombinedForceNotCollided g me
                 |> applyForce dt newMe
     in
-    bodiesCollided
-    |> handleCollision me
-    |> Maybe.map (Tuple.mapFirst handleNotCollided)
+    handleCollision me bodiesCollided
+        |> Maybe.map (Tuple.mapFirst handleNotCollided)
 
 
 
@@ -101,26 +113,27 @@ update g dt bodiesCollided bodiesNotCollided me =
 
 getMomentum : Body -> Vec2
 getMomentum b =
-    scale b.mass b.velocity
-
-
-sumVec : List Vec2 -> Vec2
-sumVec vecs =
-    vecs
-        |> List.foldl add (vec2 0 0)
+    V.scale b.mass b.velocity
 
 
 getForceNotCollided : G -> Body -> MassDist a -> Force
 getForceNotCollided g me ( b, dist ) =
-    let
-        delta =
-            sub b.position me.position
-    in
     if dist == 0 then
-        vec2 0 0
+        VE.origin
 
     else
-        scale (g * me.mass * b.mass / (dist ^ 3)) delta
+        let
+            delta =
+                V.sub b.position me.position
+        in
+        V.scale (g * me.mass * b.mass / (dist ^ 3)) delta
+
+
+getCombinedForceNotCollided : G -> Body -> List (MassDist a) -> Force
+getCombinedForceNotCollided g me centersOfMass =
+    centersOfMass
+        |> List.map (getForceNotCollided g me)
+        |> VE.sum
 
 
 {-| Some other bodies and me are "close" enough. What do I do?
@@ -165,10 +178,10 @@ handleCollision me bodiesCollided =
                     List.map .mass cluster |> List.sum
 
                 totalMomentum =
-                    List.map getMomentum cluster |> sumVec
+                    List.map getMomentum cluster |> VE.sum
 
                 velocity =
-                    scale (1 / totalMass) totalMomentum
+                    V.scale (1 / totalMass) totalMomentum
             in
             Just
                 ( { me
@@ -191,14 +204,14 @@ applyForce dt b force =
 
         newVelocity =
             force
-                |> scale (dt / mass)
-                |> add velocity
+                |> V.scale (dt / mass)
+                |> V.add velocity
 
         newPosition =
             velocity
-                |> add newVelocity
-                |> scale (dt * 0.5)
-                |> add position
+                |> V.add newVelocity
+                |> V.scale (dt * 0.5)
+                |> V.add position
     in
     { b
         | velocity = newVelocity
@@ -217,9 +230,17 @@ type alias BodyDist =
 
 getDist : Massed a -> Massed a -> ( Massed a, Float )
 getDist b1 b2 =
-    ( b2, distance b1.position b2.position )
+    ( b2, V.distance b1.position b2.position )
 
 
 getDists : List (Massed a) -> Massed a -> List (MassDist a)
 getDists others me =
     List.map (getDist me) others
+
+
+shouldCollide : Body -> BodyDist -> Bool
+shouldCollide me ( b, d ) =
+    -- previously dist < r1 + r2 was used. However that resulted in jumpy
+    -- animation when 2 bodies collide, especially when they have large radious
+    -- this allows the bodies to move closer to each other
+    d < me.radious || d < b.radious

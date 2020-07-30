@@ -1,8 +1,9 @@
 module BHTree exposing (BHTree, bhtree, massCloseTo)
 
-import Math.Vector2 as V exposing (Vec2)
-import QuadTree.Box as Box exposing (Box)
-import QuadTree.Region as Region exposing (Regions)
+import Math.Vector2 as V
+import Math.Vector2.Extra as VE exposing (origin)
+import BHTree.Box as Box exposing (Box)
+import BHTree.Region as Region exposing (Regions)
 import Universe.Model.Body as Body exposing (Body, CenterOfMass)
 
 
@@ -60,12 +61,6 @@ massCloseTo theta me t =
 
 -- INTERNAL
 
-
-origin : Vec2
-origin =
-    V.vec2 0 0
-
-
 boundingBox : List Body -> Box
 boundingBox bodies =
     let
@@ -115,7 +110,7 @@ addBody b t =
 
 defaultCenterOfMass : CenterOfMass
 defaultCenterOfMass =
-    Body.centerOfMass 0 (V.vec2 0 0)
+    Body.centerOfMass 0 origin
 
 
 summarize : (Regions BHTree -> CenterOfMass) -> BHTree -> BHTree
@@ -149,7 +144,7 @@ aggregateCenterOfMass r =
             centers
                 |> List.map
                     (\c -> V.scale (c.mass / totalMass) c.position)
-                |> List.foldl V.add (V.vec2 0 0)
+                |> VE.sum
     in
     Body.centerOfMass totalMass center
 

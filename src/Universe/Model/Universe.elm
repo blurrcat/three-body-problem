@@ -14,7 +14,6 @@ import Set
 import Universe.Model.Body as Body
     exposing
         ( Body
-        , BodyDist
         , DT
         , G
         )
@@ -109,30 +108,8 @@ updateBody t { g, dt } me =
         theta =
             1
 
-        ( centers, bodies ) =
+        closeMatter =
             BHTree.massCloseTo theta me t
 
-        ( bodiesCollidedWithDist, bodiesNotCollidedWithDist ) =
-            Body.getDists bodies me
-                |> List.partition (shouldCollide me)
-
-        bodiesCollided =
-            List.map Tuple.first bodiesCollidedWithDist
-
-        centersNotCollidedWithDist =
-            Body.getDists centers (Body.centerOfMass me.mass me.position)
-
-        notCollided =
-            bodiesNotCollidedWithDist
-                |> List.map (Tuple.mapFirst (\b -> { mass = b.mass, position = b.position }))
-                |> List.append centersNotCollidedWithDist
     in
-    Body.update g dt bodiesCollided notCollided me
-
-
-shouldCollide : Body -> BodyDist -> Bool
-shouldCollide me ( body, dist ) =
-    -- previously dist < r1 + r2 was used. However that resulted in jumpy
-    -- animation when 2 bodies collide, especially when they have large radious
-    -- this allows the bodies to move closer to each other
-    dist < me.radious || dist < body.radious
+    Body.update g dt closeMatter me
