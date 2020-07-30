@@ -1,14 +1,15 @@
 module Universe.Model.Body exposing
     ( Body
     , BodyDist
+    , CenterOfMass
     , DT
     , Force
     , G
-    , UpdateResult
+    , MassDist
     , body
     , centerOfMass
     , getDist
-    , isCenterOfMass
+    , getDists
     , update
     )
 
@@ -28,14 +29,24 @@ type alias DT =
     Float
 
 
-type alias Body =
-    { id : Int
-    , mass : Float
-    , radious : Float
-    , velocity : Vec2
-    , position : Vec2
-    , positionHistory : RingBuffer Vec2
+type alias Massed a =
+    { a
+        | mass : Float
+        , position : Vec2
     }
+
+
+type alias Body =
+    Massed
+        { id : Int
+        , velocity : Vec2
+        , radious : Float
+        , positionHistory : RingBuffer Vec2
+        }
+
+
+type alias CenterOfMass =
+    Massed {}
 
 
 fromTuple : ( Float, Float ) -> Vec2
@@ -44,7 +55,7 @@ fromTuple ( x, y ) =
 
 
 positionHistorySize =
-    50
+    30
 
 
 body : Float -> ( Float, Float ) -> ( Float, Float ) -> Body
@@ -58,42 +69,30 @@ body mass velocity position =
     }
 
 
-centerOfMass : Float -> ( Float, Float ) -> Body
+centerOfMass : Float -> Vec2 -> CenterOfMass
 centerOfMass mass position =
-    { id = -1
-    , mass = mass
-    , radious = 0
-    , velocity = V.vec2 0 0
-    , position = fromTuple position
-    , positionHistory = RingBuffer.initialize 0 (\_ -> V.vec2 0 0)
+    { mass = mass
+    , position = position
     }
-
-
-isCenterOfMass : Body -> Bool
-isCenterOfMass { id } =
-    id == -1
 
 
 getR : Float -> Float
 getR mass =
-    sqrt mass / 2
+    sqrt mass / pi
 
 
-update : G -> DT -> List BodyDist -> List BodyDist -> Body -> UpdateResult
+update : G -> DT -> List Body -> List (MassDist a) -> Body -> Maybe ( Body, List Body )
 update g dt bodiesCollided bodiesNotCollided me =
     let
-        meAfterCollision =
-            handleCollision me bodiesCollided
-
-        handleNotCollided ( b, merged ) =
-            ( bodiesNotCollided
-                |> List.map (getForceNotCollided g b)
+        handleNotCollided newMe =
+            bodiesNotCollided
+                |> List.map (getForceNotCollided g newMe)
                 |> sumVec
-                |> applyForce dt b
-            , merged
-            )
+                |> applyForce dt newMe
     in
-    Maybe.map handleNotCollided meAfterCollision
+    bodiesCollided
+    |> handleCollision me
+    |> Maybe.map (Tuple.mapFirst handleNotCollided)
 
 
 
@@ -111,15 +110,9 @@ sumVec vecs =
         |> List.foldl add (vec2 0 0)
 
 
-getForceNotCollided : G -> Body -> BodyDist -> Force
-getForceNotCollided g me bodyDist =
+getForceNotCollided : G -> Body -> MassDist a -> Force
+getForceNotCollided g me ( b, dist ) =
     let
-        b =
-            bodyDist.body
-
-        dist =
-            bodyDist.dist
-
         delta =
             sub b.position me.position
     in
@@ -130,17 +123,7 @@ getForceNotCollided g me bodyDist =
         scale (g * me.mass * b.mass / (dist ^ 3)) delta
 
 
-
--- When a bunch of bodies collide, they are deterministically merged into one.
--- The one with the biggest mass wins, as that gives the best visual effect.
--- If the current body is absorbed, Nothing is returned
-
-
-type alias UpdateResult =
-    Maybe ( Body, List Body )
-
-
-{-|Some other bodies and me are "close" enough. What do I do?
+{-| Some other bodies and me are "close" enough. What do I do?
 
 The simple rule is, whoever has the biggest mass in the cluster should
 "absorb" all others, while maintaining momentum of the cluster.
@@ -161,8 +144,9 @@ still fine - a mass leak, if you will, has happened.
 To deal with this, for each body, the list of bodies one thinks it
 absorbed is returned. On the universe level, all those are removed regardless
 of their opinion, brutally ensuring consistency.
+
 -}
-handleCollision : Body -> List BodyDist -> UpdateResult
+handleCollision : Body -> List Body -> Maybe ( Body, List Body )
 handleCollision me bodiesCollided =
     if List.isEmpty bodiesCollided then
         Just ( me, [] )
@@ -170,18 +154,18 @@ handleCollision me bodiesCollided =
     else
         let
             isTheMostMassive =
-                List.all (\other -> me.mass >= other.body.mass) bodiesCollided
+                List.all (\b -> me.mass >= b.mass) bodiesCollided
         in
         if isTheMostMassive then
             let
-                allBodies =
-                    { body = me, dist = 0 } :: bodiesCollided
+                cluster =
+                    me :: bodiesCollided
 
                 totalMass =
-                    List.map (.body >> .mass) allBodies |> List.sum
+                    List.map .mass cluster |> List.sum
 
                 totalMomentum =
-                    List.map (.body >> getMomentum) allBodies |> sumVec
+                    List.map getMomentum cluster |> sumVec
 
                 velocity =
                     scale (1 / totalMass) totalMomentum
@@ -192,7 +176,7 @@ handleCollision me bodiesCollided =
                     , radious = getR totalMass
                     , velocity = velocity
                   }
-                , List.map .body bodiesCollided
+                , bodiesCollided
                 )
 
         else
@@ -223,12 +207,19 @@ applyForce dt b force =
     }
 
 
+type alias MassDist a =
+    ( Massed a, Float )
+
+
 type alias BodyDist =
-    { body : Body
-    , dist : Float
-    }
+    ( Body, Float )
 
 
-getDist : Body -> Body -> BodyDist
+getDist : Massed a -> Massed a -> ( Massed a, Float )
 getDist b1 b2 =
-    { body = b2, dist = distance b1.position b2.position }
+    ( b2, distance b1.position b2.position )
+
+
+getDists : List (Massed a) -> Massed a -> List (MassDist a)
+getDists others me =
+    List.map (getDist me) others
