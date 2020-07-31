@@ -1,4 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Red+Rose&display=swap');
 body {
-    color: #777;
     line-height: 1.6;
+    font-family: 'Red Rose', sans-serif;
 }
