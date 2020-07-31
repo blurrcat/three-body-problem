@@ -28,7 +28,6 @@ type alias Universe =
     , epoch : Int
     }
 
-
 getBodies : Universe -> List Body
 getBodies universe =
     universe.bodies

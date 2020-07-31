@@ -3,7 +3,7 @@ module Main exposing (main)
 import Browser
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (onClick, onInput)
+import Html.Events exposing (onClick, onInput, onSubmit)
 import String
 import Universe.Random exposing (BodyParams)
 import Universe.View as U
@@ -137,9 +137,30 @@ subscriptions model =
 
 view : Model -> Html Msg
 view model =
-    div [ class "pure-g" ]
-        [ model |> viewControls [ class "pure-u-1-4" ]
-        , div [ class "pure-u-3-4" ] (U.view ( 100, 100 ) model.universe)
+    div
+        [ style "display" "flex"
+        , style "max-width" "1200px"
+        , style "margin" "0 auto"
+        ]
+        [ viewControlPane
+            [ style "flex" "1"
+            , style "padding" "0.5em"
+            ]
+            model
+        , div [ style "flex" "3" ] (U.view ( 100, 100 ) model.universe)
+        ]
+
+
+viewControlPane : List (Attribute Msg) -> Model -> Html Msg
+viewControlPane attrs model =
+    div
+        (attrs
+            ++ [ style "flex-direction" "column"
+               , style "justify-content" "space-between"
+               ]
+        )
+        [ viewControls [] model
+        , viewStats [] model
         ]
 
 
@@ -157,73 +178,64 @@ viewControls attrs ({ universe, bodyParams } as model) =
                 "pause"
     in
     div attrs
-        [ div [ style "padding" "0.5em" ]
-            [ Html.form
-                [ class "pure-form pure-form-stacked"
-                ]
-                [ fieldset []
-                    [ legend []
-                        [ text "Big Bang Params" ]
-                    , viewNumberInput "N" "# of bodies" model.fieldN model.errorN ChangeN
-                    ]
-                ]
-            , div []
-                [ div [ class "pure-u-1-2" ]
-                    [ button
-                        [ class "pure-button"
-                        , onClick
-                            (U.getRandomUniverse
-                                u.g
-                                u.dt
-                                u.n
-                                bodyParams
-                                |> wrapUniverseMsg
-                            )
-                        ]
-                        [ text "Bang!" ]
-                    ]
-                ]
-            , Html.form
-                [ class "pure-form pure-form-stacked"
-                , style "margin-top" "0.5em"
-                ]
-                [ fieldset []
-                    [ legend []
-                        [ text "Realtime Params" ]
-                    , viewNumberInput
-                        "G"
-                        "gravitational constant"
-                        model.fieldG
-                        model.errorG
-                        ChangeG
-                    , viewNumberInput
-                        "DT"
-                        "speed of time"
-                        model.fieldDT
-                        model.errorDT
-                        ChangeDt
-                    ]
-                ]
+        [ boxWithTitle "Big Bang Parameters"
+            []
+            [ viewNumberInput "N" "# of bodies" model.fieldN model.errorN ChangeN
+            , viewButton
+                False
+                (U.getRandomUniverse
+                    u.g
+                    u.dt
+                    u.n
+                    bodyParams
+                    |> wrapUniverseMsg
+                )
+                "Bang!"
+            ]
+        , boxWithTitle
+            "Real Time Parameters"
+            []
+            [ viewNumberInput
+                "G"
+                "gravitational constant"
+                model.fieldG
+                model.errorG
+                ChangeG
+            , viewNumberInput
+                "DT"
+                "speed of time"
+                model.fieldDT
+                model.errorDT
+                ChangeDt
+            ]
 
-            -- controls
-            , div
-                [ class "pure-g" ]
-                [ div [ class "pure-u-1-2" ]
-                    [ button
-                        [ class "pure-button"
-                        , onClick (U.TogglePaused |> wrapUniverseMsg)
-                        , disabled (not universe.initialized)
-                        ]
-                        [ text playBtnText ]
-                    ]
-                ]
+        -- controls
+        , div
+            []
+            [ viewButton
+                (not universe.initialized)
+                (wrapUniverseMsg U.TogglePaused)
+                playBtnText
             ]
         ]
 
 
+viewStats : List (Attribute Msg) -> Model -> Html Msg
+viewStats attrs model =
+    boxWithTitle "Stats" [] []
+
+
+boxWithTitle : String -> List (Attribute Msg) -> List (Html Msg) -> Html Msg
+boxWithTitle title attrs children =
+    (legend [] [ text title ] :: children)
+        |> fieldset [ marginBottom ]
+
+
 viewNumberInput : String -> String -> String -> String -> (String -> Msg) -> Html Msg
 viewNumberInput name desc val error msg =
-    div [ class "pure-control-group" ]
+    div
+        [ marginBottom
+        ]
         [ label [ for name ]
             [ b [] [ text name ]
             , span
@@ -240,3 +252,19 @@ viewNumberInput name desc val error msg =
             []
         , span [ class "red" ] [ text error ]
         ]
+
+
+viewButton : Bool -> Msg -> String -> Html Msg
+viewButton disabled_ msg name =
+    button
+        [ onClick msg
+        , marginBottom
+        , disabled disabled_
+        , class "pure-button"
+        ]
+        [ text name ]
+
+
+marginBottom : Attribute Msg
+marginBottom =
+    style "margin-top" "1em"
