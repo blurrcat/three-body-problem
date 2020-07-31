@@ -3,7 +3,10 @@ module Main exposing (main)
 import Browser
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (onClick, onInput, onSubmit)
+import Html.Events exposing (onClick, onInput)
+import List.Extra exposing (avg)
+import Math.Vector2 as V
+import Round
 import String
 import Universe.Random exposing (BodyParams)
 import Universe.View as U
@@ -159,13 +162,13 @@ viewControlPane attrs model =
                , style "justify-content" "space-between"
                ]
         )
-        [ viewControls [] model
-        , viewStats [] model
+        [ viewControls model
+        , viewStats model
         ]
 
 
-viewControls : List (Attribute Msg) -> Model -> Html Msg
-viewControls attrs ({ universe, bodyParams } as model) =
+viewControls : Model -> Html Msg
+viewControls ({ universe, bodyParams } as model) =
     let
         u =
             universe.universe
@@ -175,26 +178,36 @@ viewControls attrs ({ universe, bodyParams } as model) =
                 "Go!"
 
             else
-                "pause"
+                "Pause"
     in
-    div attrs
+    div []
         [ boxWithTitle "Big Bang Parameters"
-            []
             [ viewNumberInput "N" "# of bodies" model.fieldN model.errorN ChangeN
-            , viewButton
-                False
-                (U.getRandomUniverse
-                    u.g
-                    u.dt
-                    u.n
-                    bodyParams
-                    |> wrapUniverseMsg
-                )
-                "Bang!"
+            , div
+                [ style "display" "flex"
+                , style "justify-content" "space-around"
+                ]
+                [ viewButton
+                    [ onClick
+                        (U.getRandomUniverse
+                            u.g
+                            u.dt
+                            u.n
+                            bodyParams
+                            |> wrapUniverseMsg
+                        )
+                    ]
+                    "Bang!"
+                , viewButton
+                    [ disabled (not universe.initialized)
+                    , onClick (wrapUniverseMsg U.TogglePaused)
+                    , class "pure-button-primary"
+                    ]
+                    playBtnText
+                ]
             ]
         , boxWithTitle
             "Real Time Parameters"
-            []
             [ viewNumberInput
                 "G"
                 "gravitational constant"
@@ -208,33 +221,56 @@ viewControls attrs ({ universe, bodyParams } as model) =
                 model.errorDT
                 ChangeDt
             ]
-
-        -- controls
-        , div
-            []
-            [ viewButton
-                (not universe.initialized)
-                (wrapUniverseMsg U.TogglePaused)
-                playBtnText
-            ]
         ]
 
 
-viewStats : List (Attribute Msg) -> Model -> Html Msg
-viewStats attrs model =
-    boxWithTitle "Stats" [] []
+viewStats : Model -> Html Msg
+viewStats { universe } =
+    let
+        u =
+            universe.universe
+
+        row title value =
+            div
+                [ marginTop
+                , style "display" "flex"
+                , style "justify-content" "space-between"
+                ]
+                [ span [] [ text title ]
+                , span [ style "padding-left" "0.5em" ] [ text value ]
+                ]
+
+        masses =
+            u.bodies |> List.map .mass
+
+        velocities =
+            u.bodies |> List.map (.velocity >> V.length)
+
+        summarizeDist xs f =
+            f xs |> Maybe.map ((*) 100 >> Round.round 2) |> Maybe.withDefault "N/A"
+    in
+    boxWithTitle "Stats"
+        [ row "Epoch" (u.epoch |> String.fromInt)
+        , row "# of Bodies" (u.bodies |> List.length |> String.fromInt)
+        , row "Min Mass" (summarizeDist masses List.minimum)
+        , row "Avg Mass" (summarizeDist masses avg)
+        , row "Max Mass" (summarizeDist masses List.maximum)
+        , row "Min Velocity" (summarizeDist velocities List.minimum)
+        , row "Avg Velocity" (summarizeDist velocities avg)
+        , row "Max Velocity" (summarizeDist velocities List.maximum)
+        ]
 
 
-boxWithTitle : String -> List (Attribute Msg) -> List (Html Msg) -> Html Msg
-boxWithTitle title attrs children =
+boxWithTitle : String -> List (Html Msg) -> Html Msg
+boxWithTitle title children =
     (legend [] [ text title ] :: children)
-        |> fieldset [ marginBottom ]
+        |> fieldset [ marginTop ]
 
 
 viewNumberInput : String -> String -> String -> String -> (String -> Msg) -> Html Msg
 viewNumberInput name desc val error msg =
     div
-        [ marginBottom
+        [ marginTop
         ]
         [ label [ for name ]
             [ b [] [ text name ]
@@ -254,17 +290,17 @@ viewNumberInput name desc val error msg =
         ]
 
 
-viewButton : Bool -> Msg -> String -> Html Msg
-viewButton disabled_ msg name =
+viewButton : List (Attribute Msg) -> String -> Html Msg
+viewButton attrs name =
     button
-        [ onClick msg
-        , marginBottom
-        , disabled disabled_
-        , class "pure-button"
-        ]
+        ([ marginTop
+         , class "pure-button"
+         ]
+            ++ attrs
+        )
         [ text name ]
 
 
-marginBottom : Attribute Msg
-marginBottom =
+marginTop : Attribute Msg
+marginTop =
     style "margin-top" "1em"

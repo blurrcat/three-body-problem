@@ -34,6 +34,7 @@ type alias Model =
     { universe : Universe
     , paused : Bool
     , initialized : Bool
+    , t : Posix
     }
 
 
@@ -53,6 +54,7 @@ init =
     ( { universe = empty
       , paused = True
       , initialized = False
+      , t = Time.millisToPosix 0
       }
     , Cmd.none
     )
@@ -101,8 +103,11 @@ update msg ({ universe } as model) =
             , Cmd.none
             )
 
-        Tick _ ->
-            ( { model | universe = Universe.update universe }
+        Tick t ->
+            ( { model
+                | universe = Universe.update universe
+                , t = t
+              }
             , Cmd.none
             )
 
