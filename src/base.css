@@ -3,3 +3,8 @@ body {
     line-height: 1.6;
     font-family: 'Red Rose', sans-serif;
 }
+
+.space-between {
+    display: flex;
+    justify-content: space-between;
+}

@@ -32,6 +32,7 @@ type Msg
     | ChangeN String
 
 
+main: Platform.Program () Model Msg
 main =
     Browser.element
         { init = init
@@ -80,7 +81,7 @@ init _ =
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
-update msg ({ universe } as model) =
+update msg model =
     case msg of
         Noop ->
             ( model
@@ -150,7 +151,7 @@ view model =
             , style "padding" "0.5em"
             ]
             model
-        , div [ style "flex" "3" ] (U.view ( 100, 100 ) model.universe)
+        , div [ style "flex" "3" ] (U.view model.universe)
         ]
 
 
@@ -164,6 +165,7 @@ viewControlPane attrs model =
         )
         [ viewControls model
         , viewStats model
+        , viewHelp
         ]
 
 
@@ -230,16 +232,6 @@ viewStats { universe } =
         u =
             universe.universe
 
-        row title value =
-            div
-                [ marginTop
-                , style "display" "flex"
-                , style "justify-content" "space-between"
-                ]
-                [ span [] [ text title ]
-                , span [ style "padding-left" "0.5em" ] [ text value ]
-                ]
-
         masses =
             u.bodies |> List.map .mass
 
@@ -250,20 +242,20 @@ viewStats { universe } =
             f xs |> Maybe.map ((*) 100 >> Round.round 2) |> Maybe.withDefault "N/A"
     in
     boxWithTitle "Stats"
-        [ row "Epoch" (u.epoch |> String.fromInt)
-        , row "# of Bodies" (u.bodies |> List.length |> String.fromInt)
-        , row "Min Mass" (summarizeDist masses List.minimum)
-        , row "Avg Mass" (summarizeDist masses avg)
-        , row "Max Mass" (summarizeDist masses List.maximum)
-        , row "Min Velocity" (summarizeDist velocities List.minimum)
-        , row "Avg Velocity" (summarizeDist velocities avg)
-        , row "Max Velocity" (summarizeDist velocities List.maximum)
+        [ keyValueRow "Epoch" (u.epoch |> String.fromInt)
+        , keyValueRow "# of Bodies" (u.bodies |> List.length |> String.fromInt)
+        , keyValueRow "Min Mass" (summarizeDist masses List.minimum)
+        , keyValueRow "Avg Mass" (summarizeDist masses avg)
+        , keyValueRow "Max Mass" (summarizeDist masses List.maximum)
+        , keyValueRow "Min Velocity" (summarizeDist velocities List.minimum)
+        , keyValueRow "Avg Velocity" (summarizeDist velocities avg)
+        , keyValueRow "Max Velocity" (summarizeDist velocities List.maximum)
         ]
 
 
 boxWithTitle : String -> List (Html Msg) -> Html Msg
 boxWithTitle title children =
-    (legend [] [ text title ] :: children)
+    (legend [ style "padding" "0 0.25em" ] [ text title ] :: children)
         |> fieldset [ marginTop ]
 
 
@@ -304,3 +296,20 @@ viewButton attrs name =
 marginTop : Attribute Msg
 marginTop =
     style "margin-top" "1em"
+
+
+viewHelp : Html Msg
+viewHelp =
+    boxWithTitle "Camera"
+        [ keyValueRow "Move" "Arrows or w/a/s/d"
+        , keyValueRow "Zoom" "z/x"
+        , keyValueRow "Reset" "r"
+        ]
+
+
+keyValueRow : String -> String -> Html Msg
+keyValueRow key help =
+    div [ class "space-between" ]
+        [ span [] [ text key ]
+        , span [] [ text help ]
+        ]
