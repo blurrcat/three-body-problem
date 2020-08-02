@@ -32,7 +32,7 @@ type Msg
     | ChangeN String
 
 
-main: Platform.Program () Model Msg
+main : Platform.Program () Model Msg
 main =
     Browser.element
         { init = init
@@ -238,11 +238,15 @@ viewStats { universe } =
         velocities =
             u.bodies |> List.map (.velocity >> V.length)
 
+        formatFloat =
+            Round.round 2
+
         summarizeDist xs f =
-            f xs |> Maybe.map ((*) 100 >> Round.round 2) |> Maybe.withDefault "N/A"
+            f xs |> Maybe.map formatFloat |> Maybe.withDefault "N/A"
     in
     boxWithTitle "Stats"
         [ keyValueRow "Epoch" (u.epoch |> String.fromInt)
+        , keyValueRow "fps" (U.fps universe |> formatFloat)
         , keyValueRow "# of Bodies" (u.bodies |> List.length |> String.fromInt)
         , keyValueRow "Min Mass" (summarizeDist masses List.minimum)
         , keyValueRow "Avg Mass" (summarizeDist masses avg)

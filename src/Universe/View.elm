@@ -1,6 +1,7 @@
 module Universe.View exposing
     ( Model
     , Msg(..)
+    , fps
     , getRandomUniverse
     , init
     , subscriptions
@@ -8,18 +9,18 @@ module Universe.View exposing
     , view
     )
 
-import Browser.Events exposing (onAnimationFrame, onKeyDown)
+import Browser.Events exposing (onAnimationFrameDelta, onKeyDown)
 import Html exposing (Html)
 import Json.Decode as Decode
+import List.Extra exposing (avg)
 import Math.Vector2 exposing (getX, getY, toRecord)
 import Random
-import RingBuffer
+import RingBuffer exposing (RingBuffer)
 import String
 import Svg exposing (circle, g, polyline, rect, svg)
 import Svg.Attributes as SA
-import Time exposing (Posix)
 import Universe.Camera as Camera exposing (Camera)
-import Universe.Model.Body exposing (Body, DT, G)
+import Universe.Model.Body as Body exposing (Body, DT, G)
 import Universe.Model.Universe as Universe
     exposing
         ( Universe
@@ -36,14 +37,14 @@ type alias Model =
     { universe : Universe
     , paused : Bool
     , initialized : Bool
-    , t : Posix
+    , animationFrameDelta : RingBuffer Float
     , camera : Camera
     }
 
 
 type Msg
     = Noop
-    | Tick Posix
+    | Tick Float
     | SetG Float
     | SetDT Float
     | SetN Int
@@ -58,7 +59,7 @@ init =
     ( { universe = empty
       , paused = True
       , initialized = False
-      , t = Time.millisToPosix 0
+      , animationFrameDelta = emptyAnimationFrameDelta
       , camera = Camera.camera size size
       }
     , Cmd.none
@@ -84,7 +85,12 @@ update msg ({ universe } as model) =
             )
 
         RandomUniverseArrived newUniverse ->
-            ( { model | universe = newUniverse, initialized = True }
+            ( { model
+                | universe = newUniverse
+                , initialized = True
+                , camera = Camera.reset model.camera
+                , animationFrameDelta = emptyAnimationFrameDelta
+              }
             , Cmd.none
             )
 
@@ -108,10 +114,10 @@ update msg ({ universe } as model) =
             , Cmd.none
             )
 
-        Tick t ->
+        Tick delta ->
             ( { model
                 | universe = Universe.update universe
-                , t = t
+                , animationFrameDelta = RingBuffer.push delta model.animationFrameDelta
               }
             , Cmd.none
             )
@@ -129,7 +135,7 @@ subscriptions model =
     let
         animationSub =
             if not model.paused && model.initialized then
-                onAnimationFrame Tick
+                onAnimationFrameDelta Tick
 
             else
                 Sub.none
@@ -143,6 +149,15 @@ subscriptions model =
 size : Float
 size =
     100
+
+
+fps : Model -> Float
+fps { animationFrameDelta } =
+    animationFrameDelta
+        |> RingBuffer.toList
+        |> avg
+        |> Maybe.map ((/) 1000)
+        |> Maybe.withDefault 0
 
 
 view : Model -> List (Html msg)
@@ -171,25 +186,25 @@ view model =
 
 
 viewBody : Body -> Html msg
-viewBody { radious, position, positionHistory } =
+viewBody b =
     let
         { x, y } =
-            toRecord position
+            toRecord b.position
 
         toPoint p =
-            String.fromFloat (getX p) ++ "," ++ String.fromFloat (getY p)
+            [ String.fromFloat (getX p), ",", String.fromFloat (getY p), " " ]
 
         path =
-            positionHistory
-                |> RingBuffer.toList
-                |> List.map toPoint
-                |> String.join " "
+            b
+                |> Body.positionHistory
+                |> List.concatMap toPoint
+                |> String.join ""
     in
     g []
         [ circle
             [ SA.cx (String.fromFloat x)
             , SA.cy (String.fromFloat y)
-            , SA.r (radious |> String.fromFloat)
+            , SA.r (b.radious |> String.fromFloat)
             , SA.fillOpacity "0.8"
             , SA.fill "#ffffff"
             ]
@@ -199,7 +214,12 @@ viewBody { radious, position, positionHistory } =
             , SA.fill "none"
             , SA.stroke "#ffffff"
             , SA.strokeOpacity "0.2"
-            , SA.strokeWidth (String.fromFloat (radious / 4))
+            , SA.strokeWidth (String.fromFloat (b.radious / 4))
             ]
             []
         ]
+
+
+emptyAnimationFrameDelta : RingBuffer Float
+emptyAnimationFrameDelta =
+    RingBuffer.initialize 20 (always 0)

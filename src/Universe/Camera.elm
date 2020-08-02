@@ -2,6 +2,7 @@ module Universe.Camera exposing
     ( Camera
     , Command
     , camera
+    , reset
     , keyDecoder
     , toTransform
     , update
@@ -40,16 +41,16 @@ update : Command -> Camera -> Camera
 update cmd c =
     case cmd of
         MoveLeft ->
-            { c | x = c.x - step * c.w * c.s }
-
-        MoveRight ->
             { c | x = c.x + step * c.w * c.s }
 
+        MoveRight ->
+            { c | x = c.x - step * c.w * c.s }
+
         MoveUp ->
-            { c | y = c.y - step * c.h * c.s }
+            { c | y = c.y + step * c.h * c.s }
 
         MoveDown ->
-            { c | y = c.y + step * c.h * c.s }
+            { c | y = c.y - step * c.h * c.s }
 
         ZoomIn ->
             { c | s = 1.1 * c.s }
@@ -62,6 +63,10 @@ update cmd c =
 
         _ ->
             c
+
+reset : Camera -> Camera
+reset =
+    update Reset
 
 
 keyDecoder : Decode.Decoder Command

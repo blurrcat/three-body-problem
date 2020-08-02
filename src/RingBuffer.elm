@@ -1,4 +1,10 @@
-module RingBuffer exposing (RingBuffer, initialize, push, toList)
+module RingBuffer exposing
+    ( RingBuffer
+    , initialize
+    , items
+    , push
+    , toList
+    )
 
 import Array exposing (Array)
 
@@ -23,7 +29,7 @@ initialize maxSize createItem =
 push : a -> RingBuffer a -> RingBuffer a
 push item r =
     let
-        items =
+        newItems =
             Array.set r.current item r.items
 
         isFull =
@@ -34,25 +40,23 @@ push item r =
                 r.current + 1 == r.size
     in
     { r
-        | items = items
+        | items = newItems
         , current = modBy r.size (r.current + 1)
         , isFull = isFull
     }
 
-
 toList : RingBuffer a -> List a
 toList r =
+    items r
+        |> Array.toList
+
+
+items : RingBuffer a -> Array a
+items r =
     if r.isFull then
-        let
-            ( first, second ) =
-                r.items
-                    |> Array.toIndexedList
-                    |> List.partition (\( index, _ ) -> index >= r.current)
-        in
-        (first ++ second)
-            |> List.map Tuple.second
+        Array.append
+            (Array.slice r.current (r.size - 1) r.items)
+            (Array.slice 0 (r.current - 1) r.items)
 
     else
-        r.items
-            |> Array.toList
-            |> List.take r.current
+        Array.slice 0 r.current r.items

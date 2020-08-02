@@ -7,6 +7,7 @@ module Universe.Model.Body exposing
     , MassDist
     , body
     , centerOfMass
+    , positionHistory
     , update
     )
 
@@ -49,7 +50,12 @@ type alias CenterOfMass =
 
 positionHistorySize : Int
 positionHistorySize =
-    30
+    50
+
+
+positionHistory : Body -> List Vec2
+positionHistory b =
+    RingBuffer.toList b.positionHistory
 
 
 body : Float -> ( Float, Float ) -> ( Float, Float ) -> Body
@@ -199,24 +205,29 @@ handleCollision me bodiesCollided =
 applyForce : DT -> Body -> Force -> Body
 applyForce dt b force =
     let
-        { mass, velocity, position, positionHistory } =
-            b
-
         newVelocity =
             force
-                |> V.scale (dt / mass)
-                |> V.add velocity
+                |> V.scale (dt / b.mass)
+                |> V.add b.velocity
 
         newPosition =
-            velocity
+            b.velocity
                 |> V.add newVelocity
                 |> V.scale (dt * 0.5)
-                |> V.add position
+                |> V.add b.position
+
+        -- only record position history for large bodies
+        newPositionHistory =
+            if isSizeSmall b then
+                b.positionHistory
+
+            else
+                b.positionHistory |> RingBuffer.push b.position
     in
     { b
         | velocity = newVelocity
         , position = newPosition
-        , positionHistory = RingBuffer.push position positionHistory
+        , positionHistory = newPositionHistory
     }
 
 
@@ -244,3 +255,8 @@ shouldCollide me ( b, d ) =
     -- animation when 2 bodies collide, especially when they have large radious
     -- this allows the bodies to move closer to each other
     d < me.radious || d < b.radious
+
+
+isSizeSmall : Body -> Bool
+isSizeSmall { radious } =
+    radious < 0.1

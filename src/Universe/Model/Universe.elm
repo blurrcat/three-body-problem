@@ -68,7 +68,7 @@ empty =
     { bodies = []
     , g = 0.25
     , dt = 0.08
-    , n = 800
+    , n = 600
     , epoch = 0
     }
 
